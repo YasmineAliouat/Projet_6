@@ -68,8 +68,6 @@ with st.expander("Advanced analysis (coming soon)"):
         """
     )
 
-# --------------------------------------------------
 # Footer
-# --------------------------------------------------
 st.markdown("---")
 st.caption("Prototype – scRNA-seq data exploration tool")
