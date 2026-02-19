@@ -51,7 +51,7 @@ Elle permet d’identifier des relations fonctionnelles potentielles entre gène
 - Valeurs extraites depuis `adata.X`
 
 ### Visualisation
-- UMAP avec code couleur spécifique pour :
+- UMAP / scatter plot avec code couleur spécifique pour :
   - cellules exprimant les deux gènes ;
   - cellules exprimant un seul gène ;
   - cellules n’exprimant aucun des deux
