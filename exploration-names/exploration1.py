@@ -1,26 +1,33 @@
 import scanpy as sc
-import pandas as pd
+import argparse
 
-def explore_gene_names(path):
+def explore_gene_names(path: str, n: int = 10) -> None:
     """
-    Fonction pour une premiére visualisation des noms des génes et de leurs Ids
+    Fonction pour afficher les n premiers var_names et gene_ids.
     """
-    adata = sc.read_h5ad(path)
+    adata=sc.read_h5ad(path)
 
-    print("Les premiers var_names")
-    print(adata.var_names[:5])
+    print(f" Premies {n} var_names:")
+    print(adata.var_names[:n])
 
-    if 'gene_ids' in adata.var.columns:
-        print("\nLes premiers gene_ids")
-        print(adata.var['gene_ids'].head(5))
+    print(f" Premies {n} gene_ids:")
+    print(adata.var['gene_ids'].head(n))
 
-    print("\nNombre total de gènes", adata.n_vars)
+    print("var_names uniques?:", adata.var_names.is_unique)
 
-    print("\nvar_names uniques?", adata.var_names.is_unique)
+    x_versions= adata.var_names.str.contains(r"\.").sum()
+    print("Nombre de noms avec plusieurs versions (.x)", x_versions)
 
-    has_versions = adata.var_names.str.contains("\.").sum()
-    print("\nNombre de noms avec plusieurs versions", has_versions)
+if __name__=="__main__":
+    parser= argparse.ArgumentParser(
+        description= "Explorer les noms des gènes dans un fichier AnnData"
+    )
+    parser.add_argument(
+        "file_path", help= "Chemin vers le fichier AnnData"
+    )
+    parser.add_argument(
+        "-n", type=int, default=10, help= "Nombre de gènes à afficher (10 par défaut)" 
+    )
 
-if __name__ == "__main__":
-    explore_gene_names("/home/lili/Documents/M1/S2/Projet6/adata_3583.h5ad")
-
+    args = parser.parse_args()
+    explore_gene_names(args.file_path, args.n)
