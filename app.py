@@ -1,168 +1,411 @@
 import streamlit as st
+import scanpy as sc
+import numpy as np
+import scipy.sparse as sp
+import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="scRNA-seq Explorer", layout="wide")
 st.title("Single-cell RNA-seq data explorer")
 
 st.markdown(
-    """
-    Web interface to explore single-cell RNA-seq data stored in **AnnData (.h5ad)**.
-    """
+    "Web interface to explore single-cell RNA-seq data stored in **AnnData (.h5ad)**."
 )
 
-st.sidebar.header("Dataset")
 
+st.sidebar.header("Dataset")
 input_mode = st.sidebar.radio("Dataset input", ["Local path", "Upload file"], index=0)
 
 data_path = None
 uploaded_file = None
 
 if input_mode == "Local path":
-    data_path = st.sidebar.text_input("Path to .h5ad file", value="data/example.h5ad")
+    data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
 else:
     uploaded_file = st.sidebar.file_uploader("Upload a .h5ad file", type=["h5ad"])
 
 st.sidebar.divider()
+load_clicked = st.sidebar.button("Load dataset", type="primary")
 
-# Dataset status (UI only)
-if uploaded_file is not None:
-    st.sidebar.success("✅ File uploaded (backend not connected yet).")
-elif data_path:
-    st.sidebar.info("ℹ️ Path set (backend not connected yet).")
-else:
-    st.sidebar.warning("⚠️ No dataset selected.")
+if "dataset" not in st.session_state:
+    st.session_state.dataset = None
+if "report" not in st.session_state:
+    st.session_state.report = None
+if "dataset_source" not in st.session_state:
+    st.session_state.dataset_source = None
 
-# Backend hooks 
-# When we start coding, we will implement these functions in a backend module (like bbackend/data_access.py, backend/plots.py)
-def backend_available() -> bool:
-    return False  # will become True when backend is plugged
 
-def get_gene_suggestions(_query: str) -> list[str]:
-    return ["MYCN", "PHOX2B", "TH", "ALK", "SOX11"]
+@st.cache_resource
+def cached_load_dataset_from_path(path: str):
+    adata = sc.read_h5ad(path)
+    report = {
+        "n_cells": adata.n_obs,
+        "n_genes": adata.n_vars,
+        "has_umap": ("X_umap" in adata.obsm.keys()),
+        "layers": list(adata.layers.keys()),
+        "note": None,
+    }
+    return adata, report
 
-tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression", "Signature score"])
+
+@st.cache_resource
+def cached_load_dataset_from_bytes(file_bytes: bytes):
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".h5ad") as tmp:
+        tmp.write(file_bytes)
+        tmp.flush()
+        adata = sc.read_h5ad(tmp.name)
+    report = {
+        "n_cells": adata.n_obs,
+        "n_genes": adata.n_vars,
+        "has_umap": ("X_umap" in adata.obsm.keys()),
+        "layers": list(adata.layers.keys()),
+        "note": None,
+    }
+    return adata, report
+
+
+if load_clicked:
+    try:
+        if input_mode == "Upload file":
+            if uploaded_file is None:
+                st.sidebar.error("Please upload a .h5ad file.")
+            else:
+                ds, rep = cached_load_dataset_from_bytes(uploaded_file.getvalue())
+                st.session_state.dataset = ds
+                st.session_state.report = rep
+                st.session_state.dataset_source = f"upload:{uploaded_file.name}"
+                st.sidebar.success("Dataset successfully loaded.")
+        else:
+            if not data_path:
+                st.sidebar.error("Please provide a dataset path.")
+            else:
+                ds, rep = cached_load_dataset_from_path(data_path)
+                st.session_state.dataset = ds
+                st.session_state.report = rep
+                st.session_state.dataset_source = data_path
+                st.sidebar.success("Dataset successfully loaded.")
+    except Exception as e:
+        st.sidebar.error(f"Error loading dataset: {e}")
+
+if st.session_state.dataset_source:
+    st.sidebar.info(f"Active dataset: {st.session_state.dataset_source}")
+
+
+with st.expander("Dataset report", expanded=False):
+    rep = st.session_state.report or {}
+    cols = st.columns(4)
+    cols[0].metric("Cells", rep.get("n_cells", "—"))
+    cols[1].metric("Genes", rep.get("n_genes", "—"))
+    cols[2].metric("UMAP available", rep.get("has_umap", "—"))
+    cols[3].metric("Layers", len(rep.get("layers", []) or []))
+    if rep.get("note"):
+        st.caption(rep["note"])
+
+
+def _var_names(adata):
+    return list(adata.var_names.astype(str))
+
+
+def suggest_genes(adata, query: str, k: int = 10) -> list[str]:
+    if adata is None:
+        return []
+    q = (query or "").strip()
+    if not q:
+        return []
+    q_up = q.upper()
+    names = _var_names(adata)
+
+    exact = [g for g in names if g.upper() == q_up]
+    if exact:
+        return exact[:k]
+
+    starts = [g for g in names if g.upper().startswith(q_up)]
+    contains = [g for g in names if q_up in g.upper()]
+
+    if "." in q:
+        q_base = q.split(".")[0].upper()
+    else:
+        q_base = q_up
+    base_contains = [g for g in names if g.upper().split(".")[0] == q_base]
+
+    out = []
+    for group in (starts, base_contains, contains):
+        for g in group:
+            if g not in out:
+                out.append(g)
+            if len(out) >= k:
+                return out
+    return out[:k]
+
+
+def gene_exists(adata, gene: str) -> bool:
+    if adata is None:
+        return False
+    return str(gene) in set(adata.var_names.astype(str))
+
+
+def get_gene_vector(adata, gene: str) -> np.ndarray:
+    x = adata[:, gene].X
+    if sp.issparse(x):
+        x = x.toarray()
+    x = np.asarray(x).reshape(-1)
+    return x
+
+
+def maybe_transform(values: np.ndarray, scale_mode: str) -> np.ndarray:
+    if scale_mode == "log":
+        values = np.log1p(np.clip(values, a_min=0, a_max=None))
+    return values
+
+
+def plot_hist(values: np.ndarray, title: str):
+    fig, ax = plt.subplots()
+    ax.hist(values, bins=50)
+    ax.set_title(title)
+    ax.set_xlabel("Expression")
+    ax.set_ylabel("Cell count")
+    return fig
+
+
+def plot_violin(values: np.ndarray, title: str):
+    fig, ax = plt.subplots()
+    ax.violinplot(values, showmeans=True)
+    ax.set_title(title)
+    ax.set_ylabel("Expression")
+    ax.set_xticks([])
+    return fig
+
+
+def plot_umap(adata, color_values: np.ndarray, title: str):
+    xy = adata.obsm["X_umap"]
+    fig, ax = plt.subplots()
+    sca = ax.scatter(xy[:, 0], xy[:, 1], c=color_values, s=6)
+    ax.set_title(title)
+    ax.set_xlabel("UMAP1")
+    ax.set_ylabel("UMAP2")
+    fig.colorbar(sca, ax=ax, label="Expression")
+    return fig
+
+
+tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression (multi genes)", "Signature score"])
 
 with tab1:
     st.subheader("Single gene expression")
 
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        gene = st.text_input("Gene name", placeholder="e.g. MYCN", key="gene_single")
-    with col2:
-        scale_mode = st.selectbox("Color scale", ["auto", "linear", "log"], index=0)
-    with col3:
-        show_stats = st.checkbox("Show stats", value=True)
+    adata = st.session_state.dataset
 
-    if not gene:
-        st.info("Enter a gene name to display expression plots.")
-    else:
-        st.caption(f"Selected gene: **{gene}** | Scale: **{scale_mode}**")
+    top = st.columns([2, 1, 1, 1])
+    gene = top[0].text_input("Gene name", placeholder="e.g. MYCN", key="gene_single")
+    scale_mode = top[1].selectbox("Color scale", ["auto", "linear", "log"], index=0)
+    run_single = top[2].button("Run", key="run_single")
+    show_stats = top[3].checkbox("Show stats", value=True)
 
-        if not backend_available():
-            st.warning("Backend not connected yet. Showing placeholders.")
-            suggestions = get_gene_suggestions(gene)
-            st.write("Example gene suggestions:", ", ".join(suggestions))
+    st.markdown("**Plots to display:**")
+    pcols = st.columns(3)
+    show_hist = pcols[0].checkbox("Histogram", value=True)
+    show_violin = pcols[1].checkbox("Violin plot", value=False)
+    show_umap_opt = pcols[2].checkbox("UMAP", value=True)
 
-            left, right = st.columns(2)
-            with left:
-                st.markdown("### Expression distribution")
-                st.caption("Histogram / violin plot will appear here.")
-                plot_container = st.container()
-                with plot_container:
-                    st.empty()
+    left, right = st.columns(2)
+    with left:
+        hist_placeholder = st.empty() if show_hist else None
+        violin_placeholder = st.empty() if show_violin else None
+    with right:
+        umap_placeholder = st.empty() if show_umap_opt else None
 
+    if gene and adata is not None and not run_single:
+        sugg = suggest_genes(adata, gene)
+        if sugg:
+            st.caption("Suggestions: " + ", ".join(sugg))
 
-            with right:
-                st.markdown("### UMAP projection")
-                st.caption("UMAP colored by gene expression will appear here.")
-                plot_container = st.container()
-                with plot_container:
-                    st.empty()
+    if run_single:
+        if adata is None:
+            st.error("Load a dataset first.")
+        elif not gene:
+            st.error("Please enter a gene name.")
+        elif not gene_exists(adata, gene):
+            st.error("Gene not found in dataset.")
+            sugg = suggest_genes(adata, gene)
+            if sugg:
+                st.write("Did you mean:", ", ".join(sugg))
+        else:
+            v = get_gene_vector(adata, gene)
+            v_plot = maybe_transform(v, scale_mode)
 
+            if show_hist and hist_placeholder is not None:
+                fig = plot_hist(v_plot, f"{gene} — Histogram ({scale_mode})")
+                hist_placeholder.pyplot(fig, clear_figure=True)
+
+            if show_violin and violin_placeholder is not None:
+                fig = plot_violin(v_plot, f"{gene} — Violin ({scale_mode})")
+                violin_placeholder.pyplot(fig, clear_figure=True)
+
+            if show_umap_opt and umap_placeholder is not None:
+                if "X_umap" not in adata.obsm.keys():
+                    umap_placeholder.warning("UMAP not found in this dataset (obsm['X_umap'] missing).")
+                else:
+                    fig = plot_umap(adata, v_plot, f"{gene} — UMAP colored by expression")
+                    umap_placeholder.pyplot(fig, clear_figure=True)
 
             if show_stats:
                 st.markdown("### Summary statistics")
+                stats = {
+                    "Mean": float(np.mean(v)),
+                    "Min": float(np.min(v)),
+                    "Max": float(np.max(v)),
+                    "% cells > 0": float(100.0 * np.mean(v > 0)),
+                }
+                st.table({"Metric": list(stats.keys()), "Value": list(stats.values())})
+
+with tab2:
+    st.subheader("Co-expression (multiple genes)")
+    adata = st.session_state.dataset
+
+    st.markdown("Enter a list of genes (one per line), then choose a logical rule to highlight cells.")
+
+    ctop = st.columns([2, 1, 1])
+    genes_text = ctop[0].text_area("Genes", placeholder="PHOX2B\nMYCN\nTH", height=130, key="genes_multi")
+    logic = ctop[1].selectbox("Logic", ["AND (all genes)", "OR (any gene)"], index=0)
+    run_multi = ctop[2].button("Run", key="run_multi")
+
+    genes = [g.strip() for g in (genes_text or "").splitlines() if g.strip()]
+
+    st.markdown("**Plots to display:**")
+    pc = st.columns(2)
+    show_umap_multi = pc[0].checkbox("UMAP co-expression", value=True)
+    show_scatter = pc[1].checkbox("Scatter (2 genes only)", value=True)
+
+    left, right = st.columns(2)
+    umap_multi_placeholder = left.empty() if show_umap_multi else None
+    scatter_placeholder = right.empty() if show_scatter else None
+
+    if run_multi:
+        if adata is None:
+            st.error("Load a dataset first.")
+        elif len(genes) < 2:
+            st.error("Please enter at least 2 genes.")
+        else:
+            not_found = [g for g in genes if not gene_exists(adata, g)]
+            if not_found:
+                st.error("Some genes were not found: " + ", ".join(not_found))
+                for g in not_found[:5]:
+                    sugg = suggest_genes(adata, g)
+                    if sugg:
+                        st.write(f"Suggestions for {g}:", ", ".join(sugg))
+            else:
+                exprs = [get_gene_vector(adata, g) for g in genes]
+                on = [(e > 0) for e in exprs]
+                if logic.startswith("AND"):
+                    mask = np.logical_and.reduce(on)
+                else:
+                    mask = np.logical_or.reduce(on)
+
+                if show_umap_multi and umap_multi_placeholder is not None:
+                    if "X_umap" not in adata.obsm.keys():
+                        umap_multi_placeholder.warning("UMAP not found in this dataset (obsm['X_umap'] missing).")
+                    else:
+                        xy = adata.obsm["X_umap"]
+                        fig, ax = plt.subplots()
+                        ax.scatter(xy[:, 0], xy[:, 1], s=5, alpha=0.4)
+                        ax.scatter(xy[mask, 0], xy[mask, 1], s=8)
+                        ax.set_title(f"Co-expression ({logic}) — highlighted cells: {int(mask.sum())}")
+                        ax.set_xlabel("UMAP1")
+                        ax.set_ylabel("UMAP2")
+                        umap_multi_placeholder.pyplot(fig, clear_figure=True)
+
+                if show_scatter and scatter_placeholder is not None:
+                    if len(genes) != 2:
+                        scatter_placeholder.info("Scatter is available only when exactly 2 genes are provided.")
+                    else:
+                        x = exprs[0]
+                        y = exprs[1]
+                        fig, ax = plt.subplots()
+                        ax.scatter(x, y, s=6, alpha=0.5)
+                        ax.set_title(f"{genes[0]} vs {genes[1]}")
+                        ax.set_xlabel(genes[0])
+                        ax.set_ylabel(genes[1])
+                        scatter_placeholder.pyplot(fig, clear_figure=True)
+
+                st.markdown("### Summary")
                 st.table(
                     {
-                        "Metric": ["Mean", "% cells > 0", "Min", "Max"],
-                        "Value": ["—", "—", "—", "—"],
+                        "Metric": ["Genes", "Logic", "Cells highlighted", "% highlighted"],
+                        "Value": [
+                            ", ".join(genes),
+                            logic,
+                            int(mask.sum()),
+                            float(100.0 * mask.mean()),
+                        ],
                     }
                 )
-        else:
-            st.success("Backend connected. (This block will run later.)")
 
-# Co-expression
-with tab2:
-    st.subheader("Co-expression of two genes")
-
-    c1, c2, c3 = st.columns([2, 2, 1])
-    with c1:
-        gene_x = st.text_input("Gene X", placeholder="e.g. PHOX2B", key="gene_x")
-    with c2:
-        gene_y = st.text_input("Gene Y", placeholder="e.g. MYCN", key="gene_y")
-    with c3:
-        rule = st.selectbox("Rule", ["both > 0", "top quantile"], index=0)
-
-    if not gene_x or not gene_y:
-        st.info("Enter two gene names to display co-expression outputs.")
-    else:
-        st.caption(f"Co-expression: **{gene_x}** + **{gene_y}** | Rule: **{rule}**")
-
-        if not backend_available():
-            st.warning("Backend not connected yet. Showing placeholders.")
-            left, right = st.columns(2)
-            with left:
-                st.markdown("### UMAP co-expression map")
-                st.caption("Cells co-expressing X and Y will be highlighted here.")
-                plot_container = st.container()
-                with plot_container:
-                    st.empty()
-
-
-            with right:
-                st.markdown("### X vs Y scatter")
-                st.caption("Scatter plot of expression values will appear here.")
-                plot_container = st.container()
-                with plot_container:
-                    st.empty()
-
-        else:
-            st.success("Backend connected. (This block will run later.)")
-
-# Signature score
 with tab3:
     st.subheader("Gene signature score")
+    adata = st.session_state.dataset
 
-    st.markdown("Paste a list of genes (one per line).")
-    genes_text = st.text_area(
-        "Gene list",
-        placeholder="MYCN\nPHOX2B\nTH",
-        height=140,
-        key="signature_list",
-    )
+    st.markdown("Paste a list of genes (one per line) to compute a per-cell signature score.")
 
-    score_method = st.selectbox("Scoring method", ["mean expression", "score_genes (later)"], index=0)
+    ctop = st.columns([2, 1, 1])
+    sig_text = ctop[0].text_area("Signature genes", placeholder="MYCN\nPHOX2B\nTH", height=130, key="sig_list")
+    score_method = ctop[1].selectbox("Scoring method", ["mean"], index=0)
+    run_sig = ctop[2].button("Run", key="run_sig")
 
-    genes = [g.strip() for g in genes_text.splitlines() if g.strip()]
+    sig_genes = [g.strip() for g in (sig_text or "").splitlines() if g.strip()]
 
-    if not genes:
-        st.info("Provide at least one gene to compute a signature score.")
-    else:
-        st.caption(f"Signature genes: **{len(genes)}** | Method: **{score_method}**")
+    st.markdown("**Plots to display:**")
+    show_sig_umap = st.checkbox("UMAP signature", value=True)
+    sig_placeholder = st.empty() if show_sig_umap else None
 
-        if not backend_available():
-            st.warning("Backend not connected yet. Showing placeholders.")
-            st.markdown("### UMAP signature projection")
-            st.caption("UMAP colored by signature score will appear here.")
-            st.empty()
+    if run_sig:
+        if adata is None:
+            st.error("Load a dataset first.")
+        elif len(sig_genes) < 1:
+            st.error("Please provide at least one gene.")
         else:
-            st.success("Backend connected. (This block will run later.)")
+            not_found = [g for g in sig_genes if not gene_exists(adata, g)]
+            found = [g for g in sig_genes if gene_exists(adata, g)]
+
+            if not found:
+                st.error("None of the provided genes were found in the dataset.")
+                for g in not_found[:5]:
+                    sugg = suggest_genes(adata, g)
+                    if sugg:
+                        st.write(f"Suggestions for {g}:", ", ".join(sugg))
+            else:
+                mat = np.vstack([get_gene_vector(adata, g) for g in found])
+                sig = mat.mean(axis=0)
+
+                if show_sig_umap and sig_placeholder is not None:
+                    if "X_umap" not in adata.obsm.keys():
+                        sig_placeholder.warning("UMAP not found in this dataset (obsm['X_umap'] missing).")
+                    else:
+                        fig = plot_umap(adata, sig, f"Signature score — mean({len(found)} genes)")
+                        sig_placeholder.pyplot(fig, clear_figure=True)
+
+                st.markdown("### Summary")
+                st.table(
+                    {
+                        "Metric": ["Genes provided", "Genes found", "Genes missing", "Score (mean)"],
+                        "Value": [
+                            len(sig_genes),
+                            len(found),
+                            len(not_found),
+                            "mean expression",
+                        ],
+                    }
+                )
+
+                if not_found:
+                    st.warning("Missing genes: " + ", ".join(not_found[:20]))
+                    if len(not_found) > 20:
+                        st.caption("… (truncated)")
 
 with st.expander("About / Notes"):
     st.markdown(
         """
-        - This is the **UI skeleton**.  
-        - Data loading and plots will be connected by the backend team.  
-        - The UI is designed to support: single gene, co-expression, and signatures.
+        - This is the **Option A** version: everything is computed directly in `app.py` (no backend module).
+        - Checkbox-based plot selection avoids unnecessary computation.
+        - UMAP requires `adata.obsm["X_umap"]` to exist (otherwise preprocessing is needed).
         """
     )
 
