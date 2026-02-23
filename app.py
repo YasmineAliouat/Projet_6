@@ -1,9 +1,10 @@
 import streamlit as st
-import scanpy as sc
+import scanpy as sc #librairie principale pour lire et manipuler des objets AnnData
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
 
+#MISE EN PAGE
 st.set_page_config(page_title="scRNA-seq Explorer", layout="wide")
 st.title("Single-cell RNA-seq data explorer")
 
@@ -11,21 +12,25 @@ st.markdown(
     "Web interface to explore single-cell RNA-seq data stored in **AnnData (.h5ad)**."
 )
 
-
+# SIDEBAR POUR CHOISR LE FICHIER DE DONNÉES (on peut chosir entre local en donnant le chemin ou uploader un fichier)
 st.sidebar.header("Dataset")
 input_mode = st.sidebar.radio("Dataset input", ["Local path", "Upload file"], index=0)
 
+#Vide au début, à nous de le remplir
 data_path = None
 uploaded_file = None
 
+# Si local : on affiche un champ texte pour le chemin
+# Si upload : on affiche un file_uploader
 if input_mode == "Local path":
     data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
 else:
     uploaded_file = st.sidebar.file_uploader("Upload a .h5ad file", type=["h5ad"])
 
 st.sidebar.divider()
-load_clicked = st.sidebar.button("Load dataset", type="primary")
+load_clicked = st.sidebar.button("Load dataset", type="primary") #charger au clic
 
+#MÉMORISER LE DATASET CHARGÉ DANS LA SESSION (pour éviter de le recharger à chaque interaction)
 if "dataset" not in st.session_state:
     st.session_state.dataset = None
 if "report" not in st.session_state:
@@ -33,7 +38,7 @@ if "report" not in st.session_state:
 if "dataset_source" not in st.session_state:
     st.session_state.dataset_source = None
 
-
+# FONCTIONS DE CHARGEMENT (cela permet de cacher le résultat pour éviter de recharger le même fichier plusieurs fois)
 @st.cache_resource
 def cached_load_dataset_from_path(path: str):
     adata = sc.read_h5ad(path)
@@ -63,7 +68,7 @@ def cached_load_dataset_from_bytes(file_bytes: bytes):
     }
     return adata, report
 
-
+# LOGIQUE DU BOUTON DE CHARGEMENT : on essaie de charger le dataset selon le mode choisi, et on stocke le résultat dans la session
 if load_clicked:
     try:
         if input_mode == "Upload file":
@@ -87,10 +92,11 @@ if load_clicked:
     except Exception as e:
         st.sidebar.error(f"Error loading dataset: {e}")
 
+#Affiche le dataset actif
 if st.session_state.dataset_source:
     st.sidebar.info(f"Active dataset: {st.session_state.dataset_source}")
 
-
+# DATASET REPORT (nombre de cellules, de gènes, présence d'UMAP, etc.) dans un expander pour ne pas encombrer l'interface
 with st.expander("Dataset report", expanded=False):
     rep = st.session_state.report or {}
     cols = st.columns(4)
@@ -101,7 +107,7 @@ with st.expander("Dataset report", expanded=False):
     if rep.get("note"):
         st.caption(rep["note"])
 
-
+# FONCTIONS UTILES POUR L'EXPLORATION DES GÈNES (retourne la liste des gènes, suggère des gènes similaires, vérifie l'existence d'un gène, récupère le vecteur d'expression d'un gène)
 def _var_names(adata):
     return list(adata.var_names.astype(str))
 
@@ -137,13 +143,13 @@ def suggest_genes(adata, query: str, k: int = 10) -> list[str]:
                 return out
     return out[:k]
 
-
+#Vérifie si le gène existe dans le dataset (en comparant avec les var_names de l'adata)
 def gene_exists(adata, gene: str) -> bool:
     if adata is None:
         return False
     return str(gene) in set(adata.var_names.astype(str))
 
-
+# Récupère le vecteur d'expression d'un gène donné (en gérant le cas sparse et en s'assurant que c'est un vecteur 1D)
 def get_gene_vector(adata, gene: str) -> np.ndarray:
     x = adata[:, gene].X
     if sp.issparse(x):
@@ -151,13 +157,13 @@ def get_gene_vector(adata, gene: str) -> np.ndarray:
     x = np.asarray(x).reshape(-1)
     return x
 
-
+# transformations possibles pour les valeurs d'expression (logarithmique ou linéaire) avant de les passer aux fonctions de tracé
 def maybe_transform(values: np.ndarray, scale_mode: str) -> np.ndarray:
     if scale_mode == "log":
         values = np.log1p(np.clip(values, a_min=0, a_max=None))
     return values
 
-
+# FONCTION PLOT (histogramme, violon, UMAP) : prend les valeurs d'expression et le titre, et retourne une figure matplotlib)
 def plot_hist(values: np.ndarray, title: str):
     fig, ax = plt.subplots()
     ax.hist(values, bins=50)
@@ -186,9 +192,10 @@ def plot_umap(adata, color_values: np.ndarray, title: str):
     fig.colorbar(sca, ax=ax, label="Expression")
     return fig
 
-
+# CRÉATION DES TABS POUR LES DIFFÉRENTES ANALYSES (expression d'un gène, co-expression de plusieurs gènes, score de signature)
 tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression (multi genes)", "Signature score"])
 
+# TAB 1 : SINGLE GENE EXPRESSION : on affiche un champ pour entrer le nom du gène, des options pour choisir les types de plots à afficher, et on affiche les plots correspondants (histogramme, violon, UMAP) ainsi que des statistiques de base sur l'expression du gène. On gère aussi les cas d'erreur (gène non trouvé, dataset non chargé) et on suggère des gènes similaires si le gène entré n'est pas trouvé. 
 with tab1:
     st.subheader("Single gene expression")
 
@@ -257,6 +264,8 @@ with tab1:
                 }
                 st.table({"Metric": list(stats.keys()), "Value": list(stats.values())})
 
+
+# TAB 2 : CO-EXPRESSION DE PLUSIEURS GÈNES : on affiche un champ pour entrer une liste de gènes, une option pour choisir la logique (AND/OR) pour définir les cellules co-exprimant ces gènes, des options pour choisir les types de plots à afficher (UMAP avec les cellules co-exprimant les gènes mises en évidence, scatter plot des expressions des 2 gènes si exactement 2 gènes sont fournis), et on affiche les plots correspondants ainsi qu'un résumé du nombre et du pourcentage de cellules co-exprimant les gènes selon la logique choisie. On gère aussi les cas d'erreur (pas de dataset chargé, moins de 2 gènes fournis, certains gènes non trouvés) et on suggère des gènes similaires pour ceux qui ne sont pas trouvés.
 with tab2:
     st.subheader("Co-expression (multiple genes)")
     adata = st.session_state.dataset
@@ -339,6 +348,7 @@ with tab2:
                     }
                 )
 
+# TAB 3 : GENE SIGNATURE SCORE : on affiche un champ pour entrer une liste de gènes, une option pour choisir la méthode de calcul du score (moyenne, somme, etc.), des options pour choisir les types de plots à afficher (UMAP avec le score de signature comme couleur), et on affiche les plots correspondants ainsi qu'un résumé du nombre de gènes trouvés, du nombre de gènes manquants, et une description de la méthode de calcul du score. On gère aussi les cas d'erreur (pas de dataset chargé, aucun gène fourni, certains gènes non trouvés) et on suggère des gènes similaires pour ceux qui ne sont pas trouvés.
 with tab3:
     st.subheader("Gene signature score")
     adata = st.session_state.dataset
@@ -400,14 +410,6 @@ with tab3:
                     if len(not_found) > 20:
                         st.caption("… (truncated)")
 
-with st.expander("About / Notes"):
-    st.markdown(
-        """
-        - This is the **Option A** version: everything is computed directly in `app.py` (no backend module).
-        - Checkbox-based plot selection avoids unnecessary computation.
-        - UMAP requires `adata.obsm["X_umap"]` to exist (otherwise preprocessing is needed).
-        """
-    )
+# 
 
-st.markdown("---")
 st.caption("Prototype – scRNA-seq data exploration tool")
