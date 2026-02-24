@@ -6,10 +6,9 @@ def gene_versions(adata):
     """
     Cette fonction rajoute les colonne base_name et has_versions au adata. 
     Si un gène a plus qu'une version on aura True dans has_versions,
-    le nom complet avec le sufix (.X) dans var_name, et le nom sans sufix dans base_name
+    et le nom sans sufix (.X) dans base_name
     """
     names= pd.Index(adata.var_names.astype(str))
-    adata.var["var_name"]=names #garde le nom originale
     adata.var["base_name"]=names.str.replace(r"\.", "", regex=True) #garde pas le (.X)
     adata.var["has_versions"]=names.str.contains(r"\.", "", regex=True) # a plus qu'une version ou pas
     return adata
@@ -21,6 +20,10 @@ if __name__=="__main__":
     parser.add_argument(
         "file_path", help= "Chemin vers le fichier AnnData"
     )
+
+    parser.add_argument(
+        "--output" ,type = str, help= "Nom du fichier de sortie" 
+    )
     parser.add_argument(
         "--save" ,action= "store_true", help= "Créer un nouveau fichier avec les nouvelles colonnes (.prep-versions.h5ad)" 
     )
@@ -29,11 +32,15 @@ if __name__=="__main__":
 
     adata=sc.read_h5ad(args.file_path)
     adata=gene_versions(adata)
-    print(adata.var[["var_name", "base_name", "has_versions"]]. head())
+    print(adata.var[["base_name", "has_versions"]]. head())
 
 
     if args.save:
-        output_file=args.file_path.replace(".h5ad", ".prep_versions.h5ad")
+        if args.output:
+            output_file=args.output
+        else:
+            output_file=args.file_path.replace(".h5ad", ".prep_versions.h5ad")
+ 
         adata.write_h5ad(output_file)
         print(f"Nouveau fichier créé: {output_file}")
     else:
