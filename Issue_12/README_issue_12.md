@@ -30,19 +30,3 @@ Met en évidence la proportion de cellules à expression nulle ou faible.
 ### UMAP colorée  
 Projection bidimensionnelle des cellules, colorées selon leur niveau d’expression.  
 Permet d’identifier les sous-populations exprimantes.
-
----
-
-## Test
-
-Un script Python `test_plot.py` est fourni dans le dépôt.
-
-Ce script permet de tester la fonction `plot_gene_expression()` indépendamment de l’interface web.
-
-Il :
-- charge un fichier .h5ad
-- demande un nom de gène
-- appelle la fonction
-- affiche les visualisations
-
-Il sert à valider le bon fonctionnement de la fonctionnalité pendant le développement.
