@@ -1,5 +1,12 @@
 import scanpy as sc
 import argparse
+import pandas as pd
+
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_colwidth", None)
+
+
 
 def explore_gene_names(path: str, n: int = 10) -> None:
     """
