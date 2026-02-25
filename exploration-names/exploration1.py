@@ -18,11 +18,11 @@ def explore_gene_names(path: str, n: int = 10) -> None:
     x_versions= adata.var_names.str.contains(r"\.").sum()
     print("Nombre de noms avec plusieurs versions (.x)", x_versions)
 
-    print("\n Colonnes disponibles dans adata.var:")
-    print(list(adata.var.columns))
+    colonnes=[ "gene_ids", "gene_symbol", "alias_symbol", "hgnc_symbol",
+     "hgnc_id", "entrez_id", "refseq_mrna", "uniprot_swissprot", "base_name", "has_versions" ]
 
-    print(f"\n Premiers {n} gene_names")
-    print(adata.var.head(n))
+    cols= [col for col in colonnes if col in adata.var.columns]
+    print(adata.var[cols].head(n))
 
 if __name__=="__main__":
     parser= argparse.ArgumentParser(
