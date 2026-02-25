@@ -14,21 +14,9 @@ st.markdown(
 
 # SIDEBAR POUR CHOISR LE FICHIER DE DONNÉES (on peut chosir entre local en donnant le chemin ou uploader un fichier)
 st.sidebar.header("Dataset")
-input_mode = st.sidebar.radio("Dataset input", ["Local path", "Upload file"], index=0)
-
-#Vide au début, à nous de le remplir
-data_path = None
-uploaded_file = None
-
-# Si local : on affiche un champ texte pour le chemin
-# Si upload : on affiche un file_uploader
-if input_mode == "Local path":
-    data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
-else:
-    uploaded_file = st.sidebar.file_uploader("Upload a .h5ad file", type=["h5ad"])
-
+data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
 st.sidebar.divider()
-load_clicked = st.sidebar.button("Load dataset", type="primary") #charger au clic
+load_clicked = st.sidebar.button("Load dataset", type="primary")
 
 #MÉMORISER LE DATASET CHARGÉ DANS LA SESSION (pour éviter de le recharger à chaque interaction)
 if "dataset" not in st.session_state:
@@ -70,27 +58,17 @@ def cached_load_dataset_from_bytes(file_bytes: bytes):
 
 # LOGIQUE DU BOUTON DE CHARGEMENT : on essaie de charger le dataset selon le mode choisi, et on stocke le résultat dans la session
 if load_clicked:
-    try:
-        if input_mode == "Upload file":
-            if uploaded_file is None:
-                st.sidebar.error("Please upload a .h5ad file.")
-            else:
-                ds, rep = cached_load_dataset_from_bytes(uploaded_file.getvalue())
-                st.session_state.dataset = ds
-                st.session_state.report = rep
-                st.session_state.dataset_source = f"upload:{uploaded_file.name}"
-                st.sidebar.success("Dataset successfully loaded.")
-        else:
-            if not data_path:
-                st.sidebar.error("Please provide a dataset path.")
-            else:
-                ds, rep = cached_load_dataset_from_path(data_path)
-                st.session_state.dataset = ds
-                st.session_state.report = rep
-                st.session_state.dataset_source = data_path
-                st.sidebar.success("Dataset successfully loaded.")
-    except Exception as e:
-        st.sidebar.error(f"Error loading dataset: {e}")
+    if not data_path:
+        st.sidebar.error("Please provide a dataset path.")
+    else:
+        try:
+            ds, rep = cached_load_dataset_from_path(data_path)
+            st.session_state.dataset = ds
+            st.session_state.report = rep
+            st.session_state.dataset_source = data_path
+            st.sidebar.success("Dataset successfully loaded.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading dataset: {e}")
 
 #Affiche le dataset actif
 if st.session_state.dataset_source:
@@ -196,23 +174,27 @@ def plot_umap(adata, color_values: np.ndarray, title: str):
 tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression (multi genes)", "Signature score"])
 
 # TAB 1 : SINGLE GENE EXPRESSION : on affiche un champ pour entrer le nom du gène, des options pour choisir les types de plots à afficher, et on affiche les plots correspondants (histogramme, violon, UMAP) ainsi que des statistiques de base sur l'expression du gène. On gère aussi les cas d'erreur (gène non trouvé, dataset non chargé) et on suggère des gènes similaires si le gène entré n'est pas trouvé. 
+
 with tab1:
     st.subheader("Single gene expression")
 
     adata = st.session_state.dataset
 
+    # Ligne de contrôle (input gene, scale, bouton Run, checkbox stats)
     top = st.columns([2, 1, 1, 1])
     gene = top[0].text_input("Gene name", placeholder="e.g. MYCN", key="gene_single")
     scale_mode = top[1].selectbox("Color scale", ["auto", "linear", "log"], index=0)
     run_single = top[2].button("Run", key="run_single")
     show_stats = top[3].checkbox("Show stats", value=True)
 
+    # Checkboxes pour choisir quels plots afficher
     st.markdown("**Plots to display:**")
     pcols = st.columns(3)
     show_hist = pcols[0].checkbox("Histogram", value=True)
     show_violin = pcols[1].checkbox("Violin plot", value=False)
     show_umap_opt = pcols[2].checkbox("UMAP", value=True)
 
+    # Checkboxes pour choisir quels plots afficher
     left, right = st.columns(2)
     with left:
         hist_placeholder = st.empty() if show_hist else None
@@ -220,11 +202,13 @@ with tab1:
     with right:
         umap_placeholder = st.empty() if show_umap_opt else None
 
+    # Si l'utilisateur tape un gène mais n'a pas cliqué Run, on propose des suggestions
     if gene and adata is not None and not run_single:
         sugg = suggest_genes(adata, gene)
         if sugg:
             st.caption("Suggestions: " + ", ".join(sugg))
 
+    # Quand on clique Run
     if run_single:
         if adata is None:
             st.error("Load a dataset first.")
@@ -266,6 +250,7 @@ with tab1:
 
 
 # TAB 2 : CO-EXPRESSION DE PLUSIEURS GÈNES : on affiche un champ pour entrer une liste de gènes, une option pour choisir la logique (AND/OR) pour définir les cellules co-exprimant ces gènes, des options pour choisir les types de plots à afficher (UMAP avec les cellules co-exprimant les gènes mises en évidence, scatter plot des expressions des 2 gènes si exactement 2 gènes sont fournis), et on affiche les plots correspondants ainsi qu'un résumé du nombre et du pourcentage de cellules co-exprimant les gènes selon la logique choisie. On gère aussi les cas d'erreur (pas de dataset chargé, moins de 2 gènes fournis, certains gènes non trouvés) et on suggère des gènes similaires pour ceux qui ne sont pas trouvés.
+
 with tab2:
     st.subheader("Co-expression (multiple genes)")
     adata = st.session_state.dataset
@@ -349,6 +334,7 @@ with tab2:
                 )
 
 # TAB 3 : GENE SIGNATURE SCORE : on affiche un champ pour entrer une liste de gènes, une option pour choisir la méthode de calcul du score (moyenne, somme, etc.), des options pour choisir les types de plots à afficher (UMAP avec le score de signature comme couleur), et on affiche les plots correspondants ainsi qu'un résumé du nombre de gènes trouvés, du nombre de gènes manquants, et une description de la méthode de calcul du score. On gère aussi les cas d'erreur (pas de dataset chargé, aucun gène fourni, certains gènes non trouvés) et on suggère des gènes similaires pour ceux qui ne sont pas trouvés.
+
 with tab3:
     st.subheader("Gene signature score")
     adata = st.session_state.dataset
@@ -410,6 +396,5 @@ with tab3:
                     if len(not_found) > 20:
                         st.caption("… (truncated)")
 
-# 
-
+# Petit footer inutile 
 st.caption("Prototype – scRNA-seq data exploration tool")
