@@ -31,6 +31,16 @@ def explore_gene_names(path: str, n: int = 10) -> None:
     cols= [col for col in colonnes if col in adata.var.columns]
     print(adata.var[cols].head(n))
 
+    #Pour savoir les noms disponibles pour chaque attributs
+    print ( "Nombre de gènes avec gene_symbol:", int(adata.var["gene_symbol"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec alias_symbol:", int(adata.var["alias_symbol"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec hgnc_symbol:", int(adata.var["hgnc_symbol"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec hgnc_id:", int(adata.var["hgnc_id"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec entrez_id:", int(adata.var["entrez_id"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec refseq_mrna:", int(adata.var["refseq_mrna"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec uniprot_swissprot:", int(adata.var["uniprot_swissprot"].notna().sum()), "/", adata.n_vars)
+
+
 if __name__=="__main__":
     parser= argparse.ArgumentParser(
         description= "Explorer les noms des gènes dans un fichier AnnData"
