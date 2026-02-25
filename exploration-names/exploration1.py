@@ -26,7 +26,7 @@ def explore_gene_names(path: str, n: int = 10) -> None:
     print("Nombre de noms avec plusieurs versions (.x)", x_versions)
 
     colonnes=[ "gene_ids", "gene_symbol", "alias_symbol", "hgnc_symbol",
-     "hgnc_id", "entrez_id", "refseq_mrna", "uniprot_swissprot", "base_name", "has_versions" ]
+     "hgnc_id", "NCBI_symbol", "refseq_mrna", "uniprot_swissprot", "uniprot_sptrembl", "base_name", "has_versions" ]
 
     cols= [col for col in colonnes if col in adata.var.columns]
     print(adata.var[cols].head(n))
@@ -36,9 +36,10 @@ def explore_gene_names(path: str, n: int = 10) -> None:
     print ( "Nombre de gènes avec alias_symbol:", int(adata.var["alias_symbol"].notna().sum()), "/", adata.n_vars)
     print ( "Nombre de gènes avec hgnc_symbol:", int(adata.var["hgnc_symbol"].notna().sum()), "/", adata.n_vars)
     print ( "Nombre de gènes avec hgnc_id:", int(adata.var["hgnc_id"].notna().sum()), "/", adata.n_vars)
-    print ( "Nombre de gènes avec entrez_id:", int(adata.var["entrez_id"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec NCBI_symbol:", int(adata.var["NCBI_symbol"].notna().sum()), "/", adata.n_vars)
     print ( "Nombre de gènes avec refseq_mrna:", int(adata.var["refseq_mrna"].notna().sum()), "/", adata.n_vars)
     print ( "Nombre de gènes avec uniprot_swissprot:", int(adata.var["uniprot_swissprot"].notna().sum()), "/", adata.n_vars)
+    print ( "Nombre de gènes avec uniprot_sptrembl:", int(adata.var["uniprot_sptrembl"].notna().sum()), "/", adata.n_vars)
 
 
 if __name__=="__main__":
