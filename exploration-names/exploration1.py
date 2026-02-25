@@ -18,6 +18,12 @@ def explore_gene_names(path: str, n: int = 10) -> None:
     x_versions= adata.var_names.str.contains(r"\.").sum()
     print("Nombre de noms avec plusieurs versions (.x)", x_versions)
 
+    print("\n Colonnes disponibles dans adata.var:")
+    print(list(adata.var.columns))
+
+    print(f"\n Premiers {n} gene_names")
+    print(adata.var.head(n))
+
 if __name__=="__main__":
     parser= argparse.ArgumentParser(
         description= "Explorer les noms des gènes dans un fichier AnnData"
