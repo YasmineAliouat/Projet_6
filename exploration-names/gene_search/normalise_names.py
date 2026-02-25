@@ -11,19 +11,43 @@ def gene_versions(adata):
     """
     names= pd.Index(adata.var_names.astype(str))
     adata.var["base_name"]=names.str.replace(r"\.", "", regex=True) #garde pas le (.X)
-    adata.var["has_versions"]=names.str.contains(r"\.", "", regex=True) # a plus qu'une version ou pas
+    adata.var["has_versions"]=names.str.contains(r"\.", regex=True) # a plus qu'une version ou pas
     return adata
 
-def gene_symbol(adata, organism="hsapiens"):
+def add_biomart_names(adata, organism="hsapiens"):
     """
-    Cette fonction ajoute une colonne gene_symbol qui contient
-    les noms des gène dans biomart.
+    Cette fonction ajoute plusierurs colonnes si disponible via BioMart:
+    gene_symbol; hgnc_symbol; hgnc_id, alias_symbol, entrezgene_id (NCBI)
+    refseq_mrna, refseq_peptide, uniprotswissprot, uniprotsptrembl
     """
     if "gene_ids" not in adata.var.columns:
-        raise ValueError ("gene_ids manquant")
-    annot=biomart_annotations(organism, ["ensembl_gene_id", "external_gene_name"])
-    mapping= dict(zip(annot["ensembl_gene_id"], annot ["external_gene_name"]))
-    adata.var["gene_symbol"]= adata.var["gene_ids"].map(mapping)
+        raise ValueError ("gene_ids manquant")  #Si on utilise un autre fichier
+
+    columns= [
+        "ensembl_gene_id", "external_gene_name", "hgnc_symbol", "hgnc_id",
+        "external_synonym", "entrezgene_id", "refseq_mrna", "refseq_peptide", 
+        #"uniprotswissprot", "uniprotsptrembl",
+    ]
+
+    annot=biomart_annotations(organism, columns)
+
+    existant= [col for col in columns if col in annot.columns ] #Ne garder que les colonnes existantes
+
+    grouped_annot= (annot.groupby("ensembl_gene_id").agg(lambda x: "|".join (x.dropna().astype(str).unique()))) #Certain Ids ensemble pointe vers plusiers noms
+    #adata.var["alias_symbol"]= adata.var["gene_ids"].map(grouped_annot["alias_symbol"])
+
+    rename={
+        "external_gene_name": "gene_symbol", "entrezgene_id":"NCBI_gene_id",
+        "uniprotswissprot":"uniprot_swissprot", "uniprotsptrembl":"uniprot_trembl",
+
+    }
+
+    for column in existant:
+        if column == "ensembl_gene_id":
+            continue
+        out_column= rename.get(column, column)
+        adata.var[out_column]=adata.var["gene_ids"].map(grouped_annot[column])
+
     return adata
 
 
@@ -53,8 +77,14 @@ if __name__=="__main__":
     adata=gene_versions(adata)
 
     if args.biomart:
-        adata= gene_symbol(adata, organism=args.organism)
-    print(adata.var[[ col for col in ["gene_ids", "gene_symbol","base_name", "has_versions"]if col in adata.var.columns]]. head())
+        adata= add_biomart_names(adata, organism=args.organism)
+
+    new_columns= [col for col in [
+        "gene_ids", "gene_symbol", #"alias-symbol", 
+        "hgnc_symbol",
+        "NCBI_gene_id", "refseq_mrna", "uniprot_swissprot", "base_name", "has_version"
+    ]if col in adata.var.columns]
+    print(adata.var[new_columns]. head())
 
 
     if args.save:
