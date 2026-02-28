@@ -141,7 +141,6 @@ with tab1:
         elif gene not in adata.var_names:
             st.error("Gene not found in dataset.")
         else:
-            # 1) Plot types depuis tes checkbox
             plot_types = []
             if show_violin:
                 plot_types.append("violin")
@@ -153,15 +152,12 @@ with tab1:
             if not plot_types:
                 st.warning("Select at least one plot type.")
             else:
-                # 2) Import backend de ta camarade
                 import backend.gene_expression_backend as geb
 
-                # 3) Injecter ce qui manque dans son module
                 geb.st = st
                 geb.plt = plt
-                geb.gene = gene  # IMPORTANT: gene existe ici (on est dans TAB1)
+                geb.gene = gene  
 
-                # 4) Patch scanpy: ajouter sc.pl.histogram si absent
                 import scanpy as sc
                 import numpy as np
                 import scipy.sparse as sp
@@ -189,7 +185,6 @@ with tab1:
                 if not hasattr(sc.pl, "histogram"):
                     sc.pl.histogram = _sc_pl_histogram
 
-                # 5) Appel backend (lui affiche via st.pyplot)
                 try:
                     geb.plot_gene_expression(adata, plot_types=plot_types)
                 except Exception as e:
