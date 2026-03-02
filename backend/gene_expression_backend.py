@@ -12,24 +12,6 @@ def is_gene_normalized(adata, gene: str) -> bool:
     norm_total_done = adata.uns.get("normalization", {}).get("target_sum") == 1e4
     return log1p_normalized and norm_total_done
 
-def normalize_gene_subset(adata, gene_indices: List[int]) -> sc.AnnData:
-    """
-    Normalise uniquement un sous-ensemble de gènes (CPM + log1p).
-    Retourne un nouvel AnnData avec uniquement ces gènes.
-    """
-    adata_sub = adata[:, gene_indices].copy()
-    sc.pp.normalize_total(adata_sub, target_sum=1e4)
-    sc.pp.log1p(adata_sub)
-    return adata_sub
-
-def ensure_csr_for_genes(adata, gene_indices: List[int]) -> None:
-    """Convertit en CSR uniquement les gènes sélectionnés si sparse."""
-    if sp.issparse(adata.X):
-        # Extraire uniquement les lignes/colonnes nécessaires
-        X_sub = adata.X[:, gene_indices]
-        if X_sub.format != "csr":
-            adata.X[:, gene_indices] = X_sub.tocsr()
-
 def plot_gene_expression(
     adata,
     plot_types: Optional[List[str]] = None,
@@ -45,18 +27,12 @@ def plot_gene_expression(
     missing_genes = [g for g in genes if g not in adata.var_names]
     if missing_genes:
         raise ValueError(f"Gènes non trouvés : {', '.join(missing_genes)}")
-
+    
     # Récupération des indices des gènes
     gene_indices = [adata.var_names.get_loc(g) for g in genes]
 
     # Vérification/normalisation pour ces gènes
-    if is_gene_normalized(adata, genes[0]):  # On suppose que tous les gènes ont le même état
-        adata_sub = adata[:, gene_indices].copy()
-    else:
-        adata_sub = normalize_gene_subset(adata, gene_indices)
-
-    # Optimisation sparse (CSR) pour ces gènes
-    ensure_csr_for_genes(adata_sub, range(len(genes)))  
+    adata_sub = adata[:, gene_indices].copy()
 
     # Visualisations
     if plot_types is None or "violin" in plot_types:
@@ -72,7 +48,20 @@ def plot_gene_expression(
             if plot_type == "violin":
                 st.subheader(f"Violin plot : {', '.join(genes)}")
                 fig, ax = plt.subplots()
-                sc.pl.violin(adata_sub, keys=genes, show=False, ax=ax)
+                sc.pl.violin(
+                    adata_sub,
+                    keys=[gene],
+                    show=False,
+                    ax=ax,
+                    jitter=False,    
+                    groupby="louvain",      
+                    multi_panel=False, 
+                    stripplot=False,       
+                    inner=None,    
+                    linewidth=0       
+                    )
+                ax.set_xlabel("Cluster Louvain")
+                ax.set_ylabel(f"Expression normalisée de {gene}")
                 st.pyplot(fig)
                 plt.close(fig)
 
