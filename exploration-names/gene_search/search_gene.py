@@ -2,10 +2,11 @@ import argparse
 import scanpy as sc
 
 from gene_search_utils import (
-    search_gene_hits,
+    resolve_gene_to_var_name,
     format_hits,
     choose_var_name,
 )
+
 
 
 if __name__ == "__main__":
@@ -19,21 +20,38 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     adata = sc.read_h5ad(args.file_path)
-    hits = search_gene_hits(adata, args.query, max_hits=args.max)
 
-    print(format_hits(hits, max_lines=args.max))
+    var_name, hits, suggestions = resolve_gene_to_var_name(
+        adata,
+        args.query,
+        choice=args.choose,
+        max_hits=args.max
+    )
 
-    if hits.empty:
+    #Si un seul résultat direct ou choix déjà donné
+    if var_name is not None:
+        if hits is not None:
+            print(format_hits(hits, max_lines=args.max))
+        print("\nNom sélectionné :", var_name)
         raise SystemExit(0)
 
-    if len(hits) == 1:
-        print("\nChoisissez:", hits.iloc[0]["__var_name__"])
+    #Si plusieurs résultats trouvés
+    if hits is not None:
+        print(format_hits(hits, max_lines=args.max))
+
+        if args.interactive:
+            k = int(input(f"\nChoisir une ligne (1..{len(hits)}): ").strip())
+            print("\nNom sélectionné :", choose_var_name(hits, k))
+
         raise SystemExit(0)
 
-    if args.choose is not None:
-        print("\nChoisissez:", choose_var_name(hits, args.choose))
+    #Si aucune correspondance mais suggestions proches
+    if suggestions:
+        print("Aucun résultat exact.")
+        print("\nSuggestions possibles :")
+        for s in suggestions:
+            print("-", s)
         raise SystemExit(0)
 
-    if args.interactive:
-        k = int(input(f"\nChoisissez une ligne (1..{len(hits)}): ").strip())
-        print("\nChoisissez:", choose_var_name(hits, k))
+    #Si rien trouv
+    print("Aucun résultat.")
