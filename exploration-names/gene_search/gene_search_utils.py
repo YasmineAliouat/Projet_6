@@ -18,7 +18,7 @@ DEFAULT_SEARCH_COLS = [
 def ensure_versions_cols(adata):
     """
     Cette fonction ajoute les colonnes base_name et has_versions
-    elles sont absentes.
+    si elles sont absentes.
     - base_name : var_name sans suffixe de version (.X)
     - has_versions : True si var_name finit par (.X)
     """
@@ -72,7 +72,6 @@ def search_gene_hits(adata, query, search_cols=None, max_hits=50):
     - base_name exact (avec versions)
     - gene_symbol / hgnc_symbol / entrez_id / refseq_mrna / uniprot_swissprot (exact)
     - alias_symbol (token exact)
-    - sinon contains et suggestions proches
     """
     adata = ensure_versions_cols(adata)
     var = adata.var.copy()
@@ -117,38 +116,6 @@ def search_gene_hits(adata, query, search_cols=None, max_hits=50):
         hits = var[mask]
         if not hits.empty:
             return hits[view_cols].sort_index().head(max_hits)
-
-    #fallback contains
-    masks = []
-    for c in ["gene_symbol", "hgnc_symbol", "base_name", "uniprot_swissprot", "refseq_mrna", "entrez_id"]:
-        if c in var.columns:
-            masks.append(_as_str(var[c]).str.contains(q, case=False, regex=False))
-    if "alias_symbol" in var.columns:
-        masks.append(_as_str(var["alias_symbol"]).str.contains(q, case=False, regex=False))
-
-    if masks:
-        mask_any = masks[0]
-        for m in masks[1:]:
-            mask_any = mask_any | m
-        hits = var[mask_any]
-        if not hits.empty:
-            return hits[view_cols].sort_index().head(max_hits)
-
-    #suggestions proches
-    candidates = []
-    for c in ["gene_symbol", "hgnc_symbol", "base_name"]:
-        if c in var.columns:
-            candidates += [x for x in _as_str(var[c]).tolist() if x != ""]
-    candidates = sorted(set(candidates))
-
-    close = difflib.get_close_matches(q, candidates, n=10, cutoff=0.75)
-    if close:
-        best = close[0]
-        for c in ["gene_symbol", "hgnc_symbol", "base_name"]:
-            if c in var.columns:
-                hits = var[_as_str(var[c]).str.upper() == best.upper()]
-                if not hits.empty:
-                    return hits[view_cols].sort_index().head(max_hits)
 
     return var.iloc[0:0]
 
@@ -198,16 +165,99 @@ def choose_var_name(hits_df, choice):
     return hits_df.iloc[k - 1]["__var_name__"]
 
 
+def suggest_gene_names(adata, query, n=5):
+    """
+    Cette fonction permet de proposer des noms de gènes proches si aucun résultat exact n'est trouvé.
+    La recherche de suggestions se fait sur les noms principaux les plus utiles.
+    """
+    adata = ensure_versions_cols(adata)
+    var = adata.var.copy()
+
+    candidates = []
+    for c in ["gene_symbol", "hgnc_symbol", "base_name", "uniprot_swissprot", "refseq_mrna", "entrez_id"]:
+        if c in var.columns:
+            candidates += [x for x in _as_str(var[c]).tolist() if x != ""]
+
+    if "alias_symbol" in var.columns:
+        alias_values = _as_str(var["alias_symbol"]).tolist()
+        for val in alias_values:
+            if val != "":
+                candidates += val.split("|")
+
+    candidates = sorted(set(candidates))
+
+    q = str(query).strip()
+    if q == "":
+        return []
+
+    return difflib.get_close_matches(q, candidates, n=n, cutoff=0.6)
+
+
+def search_gene_partial(adata, query, max_hits=50):
+    """
+    Cette fonction permet de rechercher un gène avec un morceau de nom.
+    Par exemple : Taper 'TTL' peut retrouver 'TTLL10'.
+    """
+    adata = ensure_versions_cols(adata)
+    var = adata.var.copy()
+    var["__var_name__"] = var.index.astype(str)
+
+    q = str(query).strip()
+    if q == "":
+        return var.iloc[0:0]
+
+    cols_present = [c for c in DEFAULT_SEARCH_COLS if c in var.columns]
+    view_cols = ["__var_name__"] + cols_present
+
+    masks = []
+    for c in ["gene_symbol", "hgnc_symbol", "base_name", "gene_ids", "uniprot_swissprot", "refseq_mrna", "entrez_id"]:
+        if c in var.columns:
+            masks.append(_as_str(var[c]).str.contains(q, case=False, regex=False))
+
+    if "alias_symbol" in var.columns:
+        masks.append(_as_str(var["alias_symbol"]).str.contains(q, case=False, regex=False))
+
+    if not masks:
+        return var.iloc[0:0]
+
+    mask_any = masks[0]
+    for m in masks[1:]:
+        mask_any = mask_any | m
+
+    hits = var[mask_any]
+    return hits[view_cols].sort_index().head(max_hits)
+
+
 def resolve_gene_to_var_name(adata, query, choice=None, max_hits=50):
     """
     Cette fonction permet de résoudre une requête utilisateur en un var_name unique si possible, 
-    sinon retourne les résultats possibles.
+    sinon fait une recherche patielle, puis donne des suggestions proches si rien est trouvé.
     """
+    #recherche exacte
     hits = search_gene_hits(adata, query, max_hits=max_hits)
-    if hits.empty:
-        return None, hits
-    if len(hits) == 1:
-        return hits.iloc[0]["__var_name__"], hits
-    if choice is not None:
-        return choose_var_name(hits, choice), hits
-    return None, hits
+
+    if not hits.empty:
+        if len(hits) == 1:
+            return hits.iloc[0]["__var_name__"], hits, [], "exact"
+
+        if choice is not None:
+            return choose_var_name(hits, choice), hits, [], "exact"
+
+        return None, hits, [], "exact"
+
+    #recherche partielle
+    partial_hits = search_gene_partial(adata, query, max_hits=max_hits)
+
+    if not partial_hits.empty:
+        if len(partial_hits) == 1:
+            return partial_hits.iloc[0]["__var_name__"], partial_hits, [], "partial"
+
+        return None, partial_hits, [], "partial"
+
+    #suggestions proches
+    suggestions = suggest_gene_names(adata, query)
+
+    if suggestions:
+        return None, None, suggestions, "suggestion"
+
+    return None, None, [], "none"
