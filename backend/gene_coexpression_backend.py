@@ -115,18 +115,18 @@ def plot_gene_expression(
                 st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "umap_coexpression":
-            st.subheader(f"UMAP co-expression : {genes[0]} vs {genes[1]}")
+                st.subheader(f"UMAP co-expression : {genes[0]} vs {genes[1]}")
 
-            gene_a, gene_b = genes[0], genes[1]
+                gene_a, gene_b = genes[0], genes[1]
 
-            expr_a = adata_sub[:, gene_a].X.toarray().flatten()
-            expr_b = adata_sub[:, gene_b].X.toarray().flatten()
+                expr_a = adata_sub[:, gene_a].X.toarray().flatten()
+                expr_b = adata_sub[:, gene_b].X.toarray().flatten()
 
-            thr_a = 0.0
-            thr_b = 0.0
+                thr_a = 0.0
+                thr_b = 0.0
 
-            a_pos = expr_a > thr_a
-            b_pos = expr_b > thr_b
+                a_pos = expr_a > thr_a
+                b_pos = expr_b > thr_b
 
             cats = np.full(adata_sub.n_obs, "none", dtype=object)
             cats[a_pos & ~b_pos] = "A_only"
