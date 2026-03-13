@@ -1,0 +1,124 @@
+ Premies 50 var_names:
+Index(['AL627309.1', 'AL627309.3', 'AL627309.5', 'AL627309.4', 'WASH9P',
+       'AP006222.1', 'AP006222.2', 'AL732372.2', 'AL669831.3', 'MTND1P23',
+       'MTND2P28', 'MTCO1P12', 'AC114498.2', 'MTCO2P12', 'MTATP8P1',
+       'MTATP6P1', 'MTCO3P12', 'AL669831.1', 'AL669831.2', 'LINC01409',
+       'AL669831.4', 'LINC01128', 'LINC00115', 'FAM41C', 'AL645608.2',
+       'SAMD11', 'NOC2L', 'KLHL17', 'PLEKHN1', 'AL645608.7', 'HES4', 'ISG15',
+       'AL645608.3', 'AGRN', 'AL390719.1', 'RNF223', 'C1orf159', 'AL390719.3',
+       'TTLL10', 'TNFRSF4', 'SDF4', 'B3GALT6', 'C1QTNF12', 'AL162741.1',
+       'UBE2J2', 'LINC01786', 'SCNN1D', 'ACAP3', 'PUSL1', 'INTS11'],
+      dtype='object')
+ Premies 50 gene_ids:
+AL627309.1    ENSG00000238009
+AL627309.3    ENSG00000239945
+AL627309.5    ENSG00000241860
+AL627309.4    ENSG00000241599
+WASH9P        ENSG00000279457
+AP006222.1    ENSG00000228463
+AP006222.2    ENSG00000286448
+AL732372.2    ENSG00000237094
+AL669831.3    ENSG00000230021
+MTND1P23      ENSG00000225972
+MTND2P28      ENSG00000225630
+MTCO1P12      ENSG00000237973
+AC114498.2    ENSG00000278791
+MTCO2P12      ENSG00000229344
+MTATP8P1      ENSG00000240409
+MTATP6P1      ENSG00000248527
+MTCO3P12      ENSG00000198744
+AL669831.1    ENSG00000228327
+AL669831.2    ENSG00000229905
+LINC01409     ENSG00000237491
+AL669831.4    ENSG00000230092
+LINC01128     ENSG00000228794
+LINC00115     ENSG00000225880
+FAM41C        ENSG00000230368
+AL645608.2    ENSG00000230699
+SAMD11        ENSG00000187634
+NOC2L         ENSG00000188976
+KLHL17        ENSG00000187961
+PLEKHN1       ENSG00000187583
+AL645608.7    ENSG00000272512
+HES4          ENSG00000188290
+ISG15         ENSG00000187608
+AL645608.3    ENSG00000231702
+AGRN          ENSG00000188157
+AL390719.1    ENSG00000217801
+RNF223        ENSG00000237330
+C1orf159      ENSG00000131591
+AL390719.3    ENSG00000285812
+TTLL10        ENSG00000162571
+TNFRSF4       ENSG00000186827
+SDF4          ENSG00000078808
+B3GALT6       ENSG00000176022
+C1QTNF12      ENSG00000184163
+AL162741.1    ENSG00000260179
+UBE2J2        ENSG00000160087
+LINC01786     ENSG00000230415
+SCNN1D        ENSG00000162572
+ACAP3         ENSG00000131584
+PUSL1         ENSG00000169972
+INTS11        ENSG00000127054
+Name: gene_ids, dtype: object
+var_names uniques?: True
+Nombre de noms avec plusieurs versions (.x) 8554
+                   gene_ids gene_symbol                              alias_symbol hgnc_symbol     hgnc_id NCBI_symbol                                                    refseq_mrna uniprot_swissprot                                                                                                                                     uniprot_sptrembl  base_name  has_versions
+AL627309.1  ENSG00000238009         NaN                                       NaN         NaN         NaN         NaN                                                            NaN               NaN                                                                                                                                                  NaN  AL6273091          True
+AL627309.3  ENSG00000239945                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6273093          True
+AL627309.5  ENSG00000241860                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6273095          True
+AL627309.4  ENSG00000241599                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6273094          True
+WASH9P      ENSG00000279457      WASH9P                                                WASH9P  HGNC:53981                                                                                          NaN                                                                                                                                                  NaN     WASH9P         False
+AP006222.1  ENSG00000228463                                                                                                                                                                        NaN                                                                                                                                                  NaN  AP0062221          True
+AP006222.2  ENSG00000286448                                                                                                                                                                        NaN                                                                                                                                                  NaN  AP0062222          True
+AL732372.2  ENSG00000237094                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL7323722          True
+AL669831.3  ENSG00000230021                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6698313          True
+MTND1P23    ENSG00000225972    MTND1P23                                              MTND1P23  HGNC:42092                                                                                          NaN                                                                                                                                                  NaN   MTND1P23         False
+MTND2P28    ENSG00000225630    MTND2P28                                              MTND2P28  HGNC:42129                                                                                          NaN                                                                                                                                                  NaN   MTND2P28         False
+MTCO1P12    ENSG00000237973    MTCO1P12                                              MTCO1P12  HGNC:52014                                                                                          NaN                                                                                                                                                  NaN   MTCO1P12         False
+AC114498.2  ENSG00000278791                                                                                                                                                                        NaN                                                                                                                                                  NaN  AC1144982          True
+MTCO2P12    ENSG00000229344    MTCO2P12                                              MTCO2P12  HGNC:52028                                                                                          NaN                                                                                                                                                  NaN   MTCO2P12         False
+MTATP8P1    ENSG00000240409    MTATP8P1                                              MTATP8P1  HGNC:44571                                                                                          NaN                                                                                                                                                  NaN   MTATP8P1         False
+MTATP6P1    ENSG00000248527    MTATP6P1                                              MTATP6P1  HGNC:44575                                                                                          NaN                                                                                                                                                  NaN   MTATP6P1         False
+MTCO3P12    ENSG00000198744    MTCO3P12                                              MTCO3P12  HGNC:52042                                                                                          NaN                                                                                                                                                  NaN   MTCO3P12         False
+AL669831.1  ENSG00000228327                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6698311          True
+AL669831.2  ENSG00000229905                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6698312          True
+LINC01409   ENSG00000237491   LINC01409                                             LINC01409  HGNC:50701                                                                                          NaN                                                                                                                                                  NaN  LINC01409         False
+AL669831.4  ENSG00000230092                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6698314          True
+LINC01128   ENSG00000228794   LINC01128                            RP11-206L10.11   LINC01128  HGNC:49377    643837.0                                                                              NaN                                                                                                                                                  NaN  LINC01128         False
+LINC00115   ENSG00000225880   LINC00115                       FLJ22639|NCRNA00115   LINC00115  HGNC:26211                                                                                          NaN                                                                                                                                                  NaN  LINC00115         False
+FAM41C      ENSG00000230368      FAM41C                                                FAM41C  HGNC:27635    284593.0                                                                              NaN                                                                                                                                                  NaN     FAM41C         False
+AL645608.2  ENSG00000230699         NaN                                       NaN         NaN         NaN         NaN                                                            NaN               NaN                                                                                                                                                  NaN  AL6456082          True
+SAMD11      ENSG00000187634      SAMD11                                  MGC45873      SAMD11  HGNC:28706    148398.0                            NM_001385641|NM_001385640|NM_152486            Q96NU1                                                    A0A087WU74|A0A087WX24|Q5SV95|A0A087X223|A0A087X1J5|A0A087WYW1|A0A087WXB3|A0A087WYU3|H7BY14|H7C3J6     SAMD11         False
+NOC2L       ENSG00000188976       NOC2L      DKFZP564C186|NET15|NET7|NIR|PPP1R112       NOC2L  HGNC:24517     26155.0                                                      NM_015658            Q9Y3T9                                                                                                                                                           NOC2L         False
+KLHL17      ENSG00000187961      KLHL17                                                KLHL17  HGNC:24023    339451.0                                                      NM_198317            Q6TDP4                                                                                                                                               J3QLT4     KLHL17         False
+PLEKHN1     ENSG00000187583     PLEKHN1                             DKFZP434H2010     PLEKHN1  HGNC:25284     84069.0               NM_032129|NM_001160184|NM_001410697|NM_001367552            Q494U1                                                                                                                                               J3KSM5    PLEKHN1         False
+AL645608.7  ENSG00000272512                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6456087          True
+HES4        ENSG00000188290        HES4                                   BHLHB42        HES4  HGNC:24149     57801.0                            NM_001142467|NM_021170|NM_001410700            Q9HCC6                                                                                                                                        E9PB28|D6REB3       HES4         False
+ISG15       ENSG00000187608       ISG15                           G1P2|IFI15|UCRP       ISG15   HGNC:4053      9636.0                                                      NM_005101            P05161                                                                                                                                A0A096LPJ4|A0A096LNZ9      ISG15         False
+AL645608.3  ENSG00000231702                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL6456083          True
+AGRN        ENSG00000188157        AGRN                                     AGRIN        AGRN    HGNC:329    375790.0                            NM_198576|NM_001305275|NM_001364727            O00468                                                                                                                     A0A087X208|A0A494C1I6|A0A494C0G5       AGRN         False
+AL390719.1  ENSG00000217801    PTPN11BP                                              PTPN11BP  HGNC:58112                                                                                          NaN                                                                                                                                                  NaN  AL3907191          True
+RNF223      ENSG00000237330      RNF223                                                RNF223  HGNC:40020    401934.0                                                   NM_001205252            E7ERA6                                                                                                                                                          RNF223         False
+C1orf159    ENSG00000131591    C1orf159                                  FLJ20584    C1orf159  HGNC:26062     54991.0                            NM_001330306|NM_017891|NM_001363525            Q96HA4                                                                                       J3QKM1|J3KT48|Q5T2W9|Q5T2W7|J3QRL0|J3KSJ6|B2REC4|B2REC5|J3QSF0   C1orf159         False
+AL390719.3  ENSG00000285812                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL3907193          True
+TTLL10      ENSG00000162571      TTLL10                            FLJ36119|TTLL5      TTLL10  HGNC:26693    254173.0                            NM_001130045|NM_001371649|NM_153254            Q6ZVT0                                                                                                                                    A0A669K9N4|J3QRK8     TTLL10         False
+TNFRSF4     ENSG00000186827     TNFRSF4                   ACT35|CD134|OX40|TXGP1L     TNFRSF4  HGNC:11918      7293.0                                         NM_003327|NM_001410709            P43489                                        A0A8V8TPN6|A0A8V8TQV3|A0A8V8TP52|A0A8V8TPH3|A0A8V8TQH5|A0A8V8TPP1|A0A8V8TQV7|A0A8V8TP56|A0A8V8TPH7|A0A8V8TQH9    TNFRSF4         False
+SDF4        ENSG00000078808        SDF4                                     CAB45        SDF4  HGNC:24188     51150.0                                            NM_016176|NM_016547                                                                                                                                    A0A5F9UP49|A0A5F9UJX7|G3V1E2|H0Y3T6       SDF4         False
+B3GALT6     ENSG00000176022     B3GALT6                                BETA3GALT6     B3GALT6  HGNC:17978    126792.0                                                      NM_080605            Q96L58                                                                                                                                                         B3GALT6         False
+C1QTNF12    ENSG00000184163    C1QTNF12  ADIPOLIN|C1QDC2|CTRP12|FAM132A|MGC105127    C1QTNF12  HGNC:32308    388581.0                                                   NM_001014980            Q5T7M4                                                                                                                                                        C1QTNF12         False
+AL162741.1  ENSG00000260179                                                                                                                                                                        NaN                                                                                                                                                  NaN  AL1627411          True
+UBE2J2      ENSG00000160087      UBE2J2                              NCUBE2|UBC6P      UBE2J2  HGNC:19268    118424.0                        NM_058167|NM_194458|NM_194457|NM_194315            Q8N2K1                                                                                       D6REN4|A6NGS0|D6RC43|D6R9H0|B1AMF0|D6RD90|D6RA15|B1AMF1|D6RB84     UBE2J2         False
+LINC01786   ENSG00000230415   LINC01786                                             LINC01786  HGNC:52575                                                                                          NaN                                                                                                                                                  NaN  LINC01786         False
+SCNN1D      ENSG00000162572      SCNN1D                           DNACH|ENACDELTA      SCNN1D  HGNC:10601      6339.0                                                   NM_001130413            P51172                                                                                                                                 F8VWH5|C9JDY8|H0Y3F1     SCNN1D         False
+ACAP3       ENSG00000131584       ACAP3                           CENTB5|KIAA1716       ACAP3  HGNC:16754    116983.0                                                      NM_030649            Q96P50                                                                                                                                               F8W850      ACAP3         False
+PUSL1       ENSG00000169972       PUSL1                                  FLJ90811       PUSL1  HGNC:26914    126789.0                                         NM_153339|NM_001346116            Q8N0Z8                                                                                                                                               J3KTG4      PUSL1         False
+INTS11      ENSG00000127054      INTS11       CPSF3L|CPSF73L|FLJ20542|INT11|RC-68      INTS11  HGNC:26052     54973.0  NM_001256456|NM_001256460|NM_001256462|NM_017871|NM_001256463            Q5TA45  A0A087WYI0|C9IYS7|J3QRY6|E9PIS0|E9PMA2|E9PIX9|E9PNS4|H0YDB1|C9J979|E9PKA4|E9PNH9|H7C247|E9PI75|E9PIG1|A0A087WXT8|E9PIL7|E9PJG0|E9PQF0|H0YE15|H0YEQ9     INTS11         False
+Nombre de gènes avec gene_symbol: 29499 / 30034
+Nombre de gènes avec alias_symbol: 29499 / 30034
+Nombre de gènes avec hgnc_symbol: 29499 / 30034
+Nombre de gènes avec hgnc_id: 29499 / 30034
+Nombre de gènes avec NCBI_symbol: 29499 / 30034
+Nombre de gènes avec refseq_mrna: 29499 / 30034
+Nombre de gènes avec uniprot_swissprot: 15853 / 30034
+Nombre de gènes avec uniprot_sptrembl: 15853 / 30034
