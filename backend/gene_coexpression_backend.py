@@ -128,43 +128,43 @@ def plot_gene_expression(
                 a_pos = expr_a > thr_a
                 b_pos = expr_b > thr_b
 
-            cats = np.full(adata_sub.n_obs, "none", dtype=object)
-            cats[a_pos & ~b_pos] = "A_only"
-            cats[~a_pos & b_pos] = "B_only"
-            cats[a_pos & b_pos] = "both"
+                cats = np.full(adata_sub.n_obs, "none", dtype=object)
+                cats[a_pos & ~b_pos] = "A_only"
+                cats[~a_pos & b_pos] = "B_only"
+                cats[a_pos & b_pos] = "both"
 
-            obs_key = f"coexp_{gene_a}_{gene_b}"
+                obs_key = f"coexp_{gene_a}_{gene_b}"
 
-            adata_sub.obs[obs_key] = cats
-            adata_sub.obs[obs_key] = adata_sub.obs[obs_key].astype("category")
-            adata_sub.obs[obs_key] = adata_sub.obs[obs_key].cat.reorder_categories(
-                ["none", "A_only", "B_only", "both"], ordered=True
-            )
+                adata_sub.obs[obs_key] = pd.Categorical(
+                    cats,
+                    categories=["none", "A_only", "B_only", "both"],
+                    ordered=True
+                )
 
-            adata_sub.uns[f"{obs_key}_colors"] = [
-                "lightgrey",
-                "deepskyblue",
-                "lightcoral",
-                "indigo"
-            ]
+                adata_sub.uns[f"{obs_key}_colors"] = [
+                    "lightgrey",
+                    "deepskyblue",
+                    "lightcoral",
+                    "indigo"
+                ]
 
-            adata_sub.obs[f"{obs_key}__A"] = expr_a
-            adata_sub.obs[f"{obs_key}__B"] = expr_b
+                adata_sub.obs[f"{obs_key}__A"] = expr_a
+                adata_sub.obs[f"{obs_key}__B"] = expr_b
 
-            ax = sc.pl.umap(
-                adata_sub,
-                color=obs_key,
-                legend_loc="right margin",
-                show=False,
-                return_fig=False
-            )
+                ax = sc.pl.umap(
+                    adata_sub,
+                    color=obs_key,
+                    legend_loc="right margin",
+                    show=False,
+                    return_fig=False
+                )
 
-            fig = ax.figure
-            fig.set_size_inches(10, 6)
-            fig.subplots_adjust(right=0.78)
+                fig = ax.figure
+                fig.set_size_inches(10, 6)
+                fig.subplots_adjust(right=0.78)
 
-            st.pyplot(fig)
-            plt.close(fig)
+                st.pyplot(fig)
+                plt.close(fig)
 
         except Exception as e:
             st.error(f"Erreur lors de la génération du {plot_type} pour {gene}: {str(e)}")
