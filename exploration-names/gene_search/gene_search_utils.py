@@ -7,10 +7,12 @@ DEFAULT_SEARCH_COLS = [
     "gene_ids",
     "gene_symbol",
     "hgnc_symbol",
+    "hgnc_id",
     "alias_symbol",
-    "entrez_id",
+    "NCBI_symbol",
     "refseq_mrna",
     "uniprot_swissprot",
+    "uniprot_sptrembl",
     "base_name",
 ]
 
@@ -50,6 +52,82 @@ def _match_alias_token(alias_series: pd.Series, query: str) -> pd.Series:
     pattern = rf"(?:^|\|){re.escape(q)}(?:\||$)"
     return a.str.contains(pattern, case=False, regex=True)
 
+########Fonctionalitées en plus
+
+def _first_matching_token(value: str, query: str):
+    """
+    Cette fonction permet , si une cellule contient plusieurs valeurs séparées par '|',
+    de retourne le premier token qui correspond à la requête
+    (exactement ou en contains, insensible à la casse).
+    """
+    if value is None:
+        return None
+
+    text = str(value)
+    q = str(query).strip().upper()
+
+    if text == "" or q == "":
+        return None
+
+    tokens = text.split("|")
+
+    # priorité au match exact
+    for tok in tokens:
+        if tok.strip().upper() == q:
+            return tok.strip()
+
+    # sinon match partiel
+    for tok in tokens:
+        if q in tok.strip().upper():
+            return tok.strip()
+
+    return None
+
+
+def _annotate_hits(hits, field_name, query, tokenized=False):
+    """
+    Cette fonction ajoute aux hits la colonne qui a matché et la valeur exacte qui a matché.
+    """
+    hits = hits.copy()
+    hits["__match_field__"] = field_name
+
+    if tokenized:
+        hits["__match_value__"] = hits[field_name].apply(lambda x: _first_matching_token(x, query))
+    else:
+        hits["__match_value__"] = hits[field_name]
+
+    return hits
+
+def _best_partial_value(row, query):
+    """
+    Cette fonction retourne la première vraie valeur du row qui contient la requête.
+    """
+    q = str(query).strip().upper()
+
+    for c in [
+        "gene_symbol",
+        "hgnc_symbol",
+        "hgnc_id",
+        "base_name",
+        "gene_ids",
+        "uniprot_swissprot",
+        "uniprot_sptrembl",
+        "refseq_mrna",
+        "NCBI_symbol",
+        "alias_symbol",
+    ]:
+        if c in row.index:
+            value = str(row[c]) if row[c] == row[c] else ""
+            if value:
+                token = _first_matching_token(value, query)
+                if token is not None:
+                    return c, token
+                if q in value.upper():
+                    return c, value
+    return None, None
+
+#########
+
 def get_name_columns(adata, keywords=None):
     """
     Cette fonction récupère uniquement les colonnes de adata.var qui ressemblent
@@ -59,7 +137,6 @@ def get_name_columns(adata, keywords=None):
         keywords = ("gene", "hgnc", "alias", "synonym", "entrez", "refseq", "uniprot", "ensembl", "symbol", "name", "id", "base")
     cols = [c for c in adata.var.columns if any(k in c.lower() for k in keywords)]
     return cols
-
 
 def search_gene_hits(adata, query, search_cols=None, max_hits=50):
     """
@@ -87,38 +164,138 @@ def search_gene_hits(adata, query, search_cols=None, max_hits=50):
     cols_present = [c for c in search_cols if c in var.columns]
     view_cols = ["__var_name__"] + cols_present
 
+    # ENSG exact
+    if "gene_ids" in var.columns and q.startswith("ENSG"):
+        hits = var[_as_str(var["gene_ids"]) == q]
+        if not hits.empty:
+            hits = _annotate_hits(hits, "gene_ids", q, tokenized=False)
+            return hits[view_cols + ["__match_field__", "__match_value__"]].head(max_hits)
+
+    # var_names exact
+    if q in adata.var_names:
+        hits = var.loc[[q]]
+        hits = _annotate_hits(hits, "__var_name__", q, tokenized=False)
+        return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+
+    # base_name exact
+    if "base_name" in var.columns:
+        hits = var[_as_str(var["base_name"]) == q]
+        if not hits.empty:
+            hits = _annotate_hits(hits, "base_name", q, tokenized=False)
+            return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+
+    # match exact sur colonnes simples
+    exact_cols = [c for c in [
+        "gene_symbol", "hgnc_symbol", "hgnc_id",
+        "NCBI_symbol", "refseq_mrna",
+        "uniprot_swissprot", "uniprot_sptrembl"
+    ] if c in var.columns]
+
+    for c in exact_cols:
+        values = _as_str(var[c]).str.upper()
+        q_upper = q.upper()
+
+        hits = var[values == q_upper]
+
+        # cas particulier pour les IDs NCBI stockés comme 54973.0
+        if hits.empty and c == "NCBI_symbol":
+            hits = var[values.str.replace(".0", "", regex=False) == q_upper]
+
+        if not hits.empty:
+            tokenized = c == "uniprot_sptrembl"
+            hits = _annotate_hits(hits, c, q, tokenized=tokenized)
+            return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+
+    # alias exact
+    if "alias_symbol" in var.columns:
+        mask = _match_alias_token(var["alias_symbol"], q)
+        hits = var[mask]
+        if not hits.empty:
+            hits = _annotate_hits(hits, "alias_symbol", q, tokenized=True)
+            return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+
+    # uniprot trembl exact (token)
+    if "uniprot_sptrembl" in var.columns:
+        mask = _match_alias_token(var["uniprot_sptrembl"], q)
+        hits = var[mask]
+        if not hits.empty:
+            hits = _annotate_hits(hits, "uniprot_sptrembl", q, tokenized=True)
+            return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+
+    return var.iloc[0:0]
+"""
+def search_gene_hits(adata, query, search_cols=None, max_hits=50):
+
+    adata = ensure_versions_cols(adata)
+    var = adata.var.copy()
+    var["__var_name__"] = var.index.astype(str)
+
+    q = str(query).strip()
+    if q == "":
+        return var.iloc[0:0]
+
+    if search_cols is None:
+        search_cols = DEFAULT_SEARCH_COLS
+
+    cols_present = [c for c in search_cols if c in var.columns]
+    view_cols = ["__var_name__"] + cols_present
+
     #ENSG exact
     if "gene_ids" in var.columns and q.startswith("ENSG"):
         hits = var[_as_str(var["gene_ids"]) == q]
         if not hits.empty:
-            return hits[view_cols].head(max_hits)
+            hits = _annotate_hits(hits, "gene_ids", q, tokenized=False)
+            return hits[["__var_name__"] + cols_present + ["__match_field__", "__match_value__"]].head(max_hits)
 
     #var_names exact
-    if q in adata.var_names:
-        return var.loc[[q], view_cols].head(max_hits)
+    if not hits.empty:
+        hits = _annotate_hits(hits, c, q, tokenized=False)
+        return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
 
     #base_name exact
     if "base_name" in var.columns:
         hits = var[_as_str(var["base_name"]) == q]
         if not hits.empty:
-            return hits[view_cols].sort_index().head(max_hits)
-
+            hits = _annotate_hits(hits, "base_name", q, tokenized=False)
+            return hits[["__var_name__"] + cols_present + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
     #match sur colonnes simples
-    exact_cols = [c for c in ["gene_symbol", "hgnc_symbol", "entrez_id", "refseq_mrna", "uniprot_swissprot"] if c in var.columns]
-    for c in exact_cols:
-        hits = var[_as_str(var[c]).str.upper() == q.upper()]
-        if not hits.empty:
-            return hits[view_cols].sort_index().head(max_hits)
+    # match sur colonnes simples
+    exact_cols = [c for c in [
+    "gene_symbol", "hgnc_symbol", "hgnc_id",
+    "NCBI_symbol", "refseq_mrna",
+    "uniprot_swissprot", "uniprot_sptrembl"
+] if c in var.columns]
 
-    #alias token exact
+    for c in exact_cols:
+        values = _as_str(var[c]).str.upper()
+        q_upper = q.upper()
+
+        hits = var[values == q_upper]
+
+    # Cas particulier pour les IDs numériques stockés comme float, ex: 54973.0
+        if hits.empty and c == "NCBI_symbol":
+            hits = var[values.str.replace(".0", "", regex=False) == q_upper]
+
+    if not hits.empty:
+        tokenized = c == "uniprot_sptrembl"
+        hits = _annotate_hits(hits, c, q, tokenized=tokenized)
+        return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
     if "alias_symbol" in var.columns:
         mask = _match_alias_token(var["alias_symbol"], q)
         hits = var[mask]
         if not hits.empty:
-            return hits[view_cols].sort_index().head(max_hits)
-
+            hits = _annotate_hits(hits, "alias_symbol", q, tokenized=True)
+            return hits[["__var_name__"] + cols_present + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+    
+    #uniprot_strembl
+    if "uniprot_sptrembl" in var.columns:
+        mask = _match_alias_token(var["uniprot_sptrembl"], q)
+        hits = var[mask]
+        if not hits.empty:
+            hits = _annotate_hits(hits, "uniprot_sptrembl", q, tokenized=True)
+            return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
     return var.iloc[0:0]
-
+"""
 
 def format_hits(hits_df, max_lines=30):
     """
@@ -129,10 +306,9 @@ def format_hits(hits_df, max_lines=30):
         return "Aucun résultat."
 
     #on garde des colonnes utiles si présentes
-    useful = [c for c in [
-        "gene_ids", "gene_symbol", "hgnc_symbol", "alias_symbol",
-        "entrez_id", "refseq_mrna", "uniprot_swissprot", "base_name"
-    ] if c in hits_df.columns]
+    useful = [c for c in ["gene_ids","gene_symbol","hgnc_symbol","hgnc_id","alias_symbol"
+    ,"NCBI_symbol", "refseq_mrna","uniprot_swissprot","uniprot_sptrembl","base_name"
+] if c in hits_df.columns]
 
     lines = []
     for i, (_, row) in enumerate(hits_df.iterrows(), start=1):
@@ -174,7 +350,7 @@ def suggest_gene_names(adata, query, n=5):
     var = adata.var.copy()
 
     candidates = []
-    for c in ["gene_symbol", "hgnc_symbol", "base_name", "uniprot_swissprot", "refseq_mrna", "entrez_id"]:
+    for c in ["gene_symbol","hgnc_symbol","hgnc_id","base_name","uniprot_swissprot","uniprot_sptrembl","refseq_mrna","NCBI_symbol"]:
         if c in var.columns:
             candidates += [x for x in _as_str(var[c]).tolist() if x != ""]
 
@@ -210,7 +386,7 @@ def search_gene_partial(adata, query, max_hits=50):
     view_cols = ["__var_name__"] + cols_present
 
     masks = []
-    for c in ["gene_symbol", "hgnc_symbol", "base_name", "gene_ids", "uniprot_swissprot", "refseq_mrna", "entrez_id"]:
+    for c in ["gene_symbol", "hgnc_symbol", "hgnc_id","base_name", "gene_ids", "uniprot_swissprot", "uniprot_sptrembl","refseq_mrna", "NCBI_symbol"]:
         if c in var.columns:
             masks.append(_as_str(var[c]).str.contains(q, case=False, regex=False))
 
@@ -225,7 +401,13 @@ def search_gene_partial(adata, query, max_hits=50):
         mask_any = mask_any | m
 
     hits = var[mask_any]
-    return hits[view_cols].sort_index().head(max_hits)
+    hits = hits.copy()
+
+    match_info = hits.apply(lambda row: _best_partial_value(row, q), axis=1)
+    hits["__match_field__"] = match_info.apply(lambda x: x[0])
+    hits["__match_value__"] = match_info.apply(lambda x: x[1])
+
+    return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
 
 
 def resolve_gene_to_var_name(adata, query, choice=None, max_hits=50):
@@ -261,3 +443,5 @@ def resolve_gene_to_var_name(adata, query, choice=None, max_hits=50):
         return None, None, suggestions, "suggestion"
 
     return None, None, [], "none"
+
+
