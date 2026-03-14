@@ -40,18 +40,18 @@ def plot_gene_expression(
 
     # Visualisations
     if plot_types is None or "scatter" in plot_types:
-        sc.pl.violin(adata_sub, keys=genes, show=False)
+        sc.pl.scatter(adata_sub, x=genes[0], y=genes[1], color="louvain", show=False)
     if plot_types is None or "heatmap" in plot_types:
-        sc.pl.histogram(adata_sub, color=genes, show=False)
+        sc.pl.heatmap(adata_sub, var_names=genes[:5], groupby="louvain", show=False)
     if plot_types is None or "umap" in plot_types:
-        sc.pl.umap(adata_sub, color=genes, show=False)
+        sc.pl.umap(adata_sub, color=genes[:2], show=False)
 
     # 6. Affichage des visualisations
     for plot_type in plot_types:
         try:
             if plot_type == "scatter":
                 st.subheader(f"Scatter plot : {genes[0]} vs {genes[1]}")
-
+                
                 gene_a = genes[0]
                 gene_b = genes[1]
 
@@ -114,7 +114,7 @@ def plot_gene_expression(
 
                 st.plotly_chart(fig, use_container_width=True)
 
-            elif plot_type == "umap_coexpression":
+            elif plot_type == "umap":
                 st.subheader(f"UMAP co-expression : {genes[0]} vs {genes[1]}")
 
                 gene_a, gene_b = genes[0], genes[1]
