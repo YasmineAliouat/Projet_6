@@ -1,6 +1,7 @@
 import importlib
 import importlib.util
 from pathlib import Path
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import scanpy as sc
@@ -74,7 +75,7 @@ def patch_histogram_if_missing():
     sc.pl.histogram = _sc_pl_histogram
 
 
-def resolve_gene_ui(adata, query: str, choice: int | None = None, max_hits: int = 30):
+def resolve_gene_ui(adata, query: str, choice: Optional[int] = None, max_hits: int = 30):
     gsu = load_gene_search_utils()
     return gsu.resolve_gene_to_var_name(adata, query, choice=choice, max_hits=max_hits)
 
