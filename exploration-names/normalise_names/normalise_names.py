@@ -1,6 +1,8 @@
 import argparse
 import scanpy as sc
 import pandas as pd
+import os
+import tempfile
 from scanpy.queries import biomart_annotations
 
 def gene_versions(adata):
@@ -10,8 +12,8 @@ def gene_versions(adata):
     et le nom sans sufix (.X) dans base_name
     """
     names= pd.Index(adata.var_names.astype(str))
-    adata.var["base_name"]=names.str.replace(r"\.", "", regex=True) #garde pas le (.X)
-    adata.var["has_versions"]=names.str.contains(r"\.", regex=True) # a plus qu'une version ou pas
+    adata.var["base_name"]=names.str.replace(r"\.\d+$", "", regex=True) #garde pas le (.X)
+    adata.var["has_versions"]=names.str.contains(r"\.\d+$", regex=True) # a plus qu'une version ou pas
     return adata
 
 def make_groups(annot: pd.DataFrame)-> pd.DataFrame:
@@ -73,57 +75,58 @@ def add_biomart_names(adata, organism="hsapiens"):
 
     return adata
 
+def normalize_adata_in_memory(adata, use_biomart=False, organism="hsapiens", copy=True):
+    """
+    Cette fonction permet de préparer un AnnData pour la recherche de gènes sans modifier le fichier source.
+    """
+    if copy:
+        adata = adata.copy()
 
-if __name__=="__main__":
-    parser= argparse.ArgumentParser(
-        description= "Préparer les noms des gènes disponibles"
+    adata = gene_versions(adata)
+
+    if use_biomart:
+        adata = add_biomart_names(adata, organism=organism)
+
+    return adata
+
+def save_normalized_h5ad(adata, output_path, use_biomart=False, organism="hsapiens"):
+    """
+    Cette fonction permet de sauvegarder une copie normalisée de l'AnnData.
+    """
+    normalized = normalize_adata_in_memory(
+        adata,
+        use_biomart=use_biomart,
+        organism=organism,
+        copy=True
     )
-    parser.add_argument(
-        "file_path", help= "Chemin vers le fichier AnnData"
+    normalized.write_h5ad(output_path)
+    return output_path
+
+def export_normalized_h5ad_bytes(adata, use_biomart=False, organism="hsapiens"):
+    """
+    Cette fonction retourne le contenu binaire d'un .h5ad normalisé,
+    prêt pour un download_button Streamlit.
+    """
+
+    normalized = normalize_adata_in_memory(
+        adata,
+        use_biomart=use_biomart,
+        organism=organism,
+        copy=True
     )
-    parser.add_argument(
-        "--biomart", action="store_true" , help= "Ajoute gene_symbol via biomart (besoin d'une connection internet)" 
-    )
-    parser.add_argument(
-        "--organism" ,default= "hsapiens", help= "Organism étudier (défaut: hsapiens)" 
-    )
-    parser.add_argument(
-        "--save" ,action= "store_true", help= "Créer un nouveau fichier avec les nouvelles colonnes (.prep-versions.h5ad)" 
-    )
-    parser.add_argument(
-        "--output" ,type = str, help= "Nom du fichier de sortie" 
-    )
 
-    args = parser.parse_args()
+    with tempfile.NamedTemporaryFile(suffix=".h5ad", delete=False) as tmp:
+        tmp_path = tmp.name
 
-    adata=sc.read_h5ad(args.file_path)
-    adata=gene_versions(adata)
+    try:
+        normalized.write_h5ad(tmp_path)
+        with open(tmp_path, "rb") as f:
+            data = f.read()
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
-    if args.biomart:
-        adata= add_biomart_names(adata, organism=args.organism)
-
-    new_columns= [col for col in [
-        "gene_ids", "gene_symbol", "alias-symbol", 
-        "hgnc_symbol", "hgnc_id",
-        "NCBI_symbol", "refseq_mrna", "uniprot_swissprot",
-        "uniprot_sptrembl", "base_name", "has_version"
-    ]if col in adata.var.columns]
-
-    print(adata.var[new_columns]. head())
-
-    #Sauvegarder un nouveau fichier modifier si demander
-    if args.save:
-        if args.output:
-            output_file=args.output
-        else:
-            output_file=args.file_path.replace(".h5ad", ".prep_versions.h5ad")
- 
-        adata.write_h5ad(output_file)
-        print(f"Nouveau fichier créé: {output_file}")
-    else:
-        print("Aucun fichier créé. Modifications uniquement en mémoire")
-
-    
+    return data
 
 
 

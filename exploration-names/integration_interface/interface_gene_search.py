@@ -1,12 +1,49 @@
 import sys
 import os
+import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gene_search.gene_search_utils import resolve_gene_to_var_name
+from normalise_names.normalise_names import gene_versions, add_biomart_names
 
+def prepare_adata_for_gene_search(adata, use_biomart=False, organism="hsapiens"):
+    """
+    Cette fonction permet de préparer adata pour la recherche de gènes sans obliger Streamlit
+    à faire la normalisation lui-même.
+    """
+    if adata is None:
+        return adata
 
-def resolve_gene_for_streamlit(adata, query, max_hits=20):
+    if "_gene_search_prepared" not in adata.uns:
+        adata.uns["_gene_search_prepared"] = False
+    if "_gene_search_biomart" not in adata.uns:
+        adata.uns["_gene_search_biomart"] = False
+
+    need_basic = (
+        "base_name" not in adata.var.columns
+        or "has_versions" not in adata.var.columns
+    )
+
+    need_biomart = use_biomart and not adata.uns["_gene_search_biomart"]
+
+    if adata.uns["_gene_search_prepared"] and not need_basic and not need_biomart:
+        return adata
+
+    if need_basic:
+        adata = gene_versions(adata)
+
+    if need_biomart and "gene_symbol" not in adata.var.columns:
+        try:
+            adata = add_biomart_names(adata, organism=organism)
+            adata.uns["_gene_search_biomart"] = True
+        except Exception:
+            pass
+
+    adata.uns["_gene_search_prepared"] = True
+    return adata
+
+def resolve_gene_for_streamlit(adata,query,max_hits=20,use_biomart=False,organism="hsapiens"):    
     """
     Cette fonction permet d'adapter la recherche de gènes à l'interface Streamlit.
     Elle utilise la fonction 'resolve_gene_to_var_name' du script 'gene_search_utils'
@@ -16,6 +53,30 @@ def resolve_gene_for_streamlit(adata, query, max_hits=20):
         - hits : DataFrame ou None
         - suggestions : list
     """
+
+    if adata is None:
+        return {
+            "status": "none",
+            "var_name": None,
+            "hits": None,
+            "suggestions": [],
+            "match_type": None
+        }
+
+    #Netoyage de la requette
+    query = str(query).strip()
+    if query == "":
+        return {
+            "status": "none",
+            "var_name": None,
+            "hits": None,
+            "suggestions": [],
+            "match_type": None
+        }
+
+    #préparation de adata en mémoire pour la recherche
+    adata = prepare_adata_for_gene_search(adata,use_biomart=use_biomart,organism=organism)
+
     var_name, hits, suggestions, match_type = resolve_gene_to_var_name(
         adata,
         query,
@@ -75,47 +136,67 @@ def resolve_gene_for_streamlit(adata, query, max_hits=20):
 
 def hits_to_options(hits):
     """
-    Cette fonction transforme les résultats en options lisibles pour un selectbox Streamlit.
-    liste de tuples du style :
-            ("AL390719.1 | ENSG00000217801", "AL390719.1")
+    Cette fonction permet de transformer le DataFrame de résultats (hits)
+    en options lisibles pour un selectbox Streamlit.
+
+    Chaque option est un tuple :
+        (label_affiché, var_name)
     """
-    
+
     if hits is None or hits.empty:
         return []
-
     options = []
-    # On parcourt les résultats pour fabriquer un label lisible qui contient:
     for _, row in hits.iterrows():
-        # 1-le nom exact dans adata.var_names
-        var_name = row["__var_name__"]
-        # 2-l'identifiant Ensembl
-        gene_id = row["gene_ids"] if "gene_ids" in row and row["gene_ids"] == row["gene_ids"] else ""
-        # 3-le symbole du gène
-        gene_symbol = row["gene_symbol"] if "gene_symbol" in row and row["gene_symbol"] == row["gene_symbol"] else ""
-        match_value = row["__match_value__"] if "__match_value__" in row and row["__match_value__"] == row["__match_value__"] else ""
+        #récupération des informations utiles
+        var_name = row.get("__var_name__", "")
+        gene_symbol = row.get("gene_symbol", "")
+        gene_id = row.get("gene_ids", "")
+        match_value = row.get("__match_value__", "")
 
-        label = f"{var_name}"
+        #on nettoie les valeurs manquantes
+        if pd.isna(var_name):
+            var_name = ""
+        if pd.isna(gene_symbol):
+            gene_symbol = ""
+        if pd.isna(gene_id):
+            gene_id = ""
+        if pd.isna(match_value):
+            match_value = ""
 
+        var_name = str(var_name)
+        gene_symbol = str(gene_symbol)
+        gene_id = str(gene_id)
+        match_value = str(match_value)
+
+        #si pas de var_name on ignore
+        if var_name == "":
+            continue
+
+        #construction du label affiché dans Streamlit
+        label = var_name
+
+        #ajout du symbole du gène
         if gene_symbol and gene_symbol != var_name:
             label += f" | {gene_symbol}"
 
-        if gene_id:
+        #ajout de l'identifiant Ensembl
+        if gene_id and gene_id not in [var_name, gene_symbol]:
             label += f" | {gene_id}"
 
-        if match_value and match_value != var_name and match_value != gene_symbol and match_value != gene_id:
+        #indique la valeur exacte qui a matché la requête
+        if match_value and match_value not in [var_name, gene_symbol, gene_id]:
             label += f" (matched: {match_value})"
-
         options.append((label, var_name))
-    return options
 
-def suggestions_to_options(adata, suggestions):
+    return options
+def suggestions_to_options(adata, suggestions, use_biomart=False, organism="hsapiens"):
     """
     Transforme une liste de suggestions textuelles en options lisibles pour Streamlit.
     On ajoute aussi le terme qui a servi à proposer ce gène.
     """
     options = []
     for sugg in suggestions:
-        result = resolve_gene_for_streamlit(adata, sugg, max_hits=10)
+        result = resolve_gene_for_streamlit(adata, sugg, max_hits=10, use_biomart=use_biomart, organism=organism)
 
         #Si la recherche est exacte
         if result["status"] == "exact" and result["var_name"] is not None:
