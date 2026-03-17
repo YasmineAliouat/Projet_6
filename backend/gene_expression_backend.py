@@ -7,13 +7,31 @@ def is_gene_normalized(adata, gene: str) -> bool:
     """
     Vérifie en interne si UN gène est déjà normalisé (log1p + CPM).
     """
-    # Si les données sont déjà normalisées globalement, on suppose que le gène l'est aussi
-    log1p_normalized = adata.uns.get("log1p", {}).get("base") == np.e
-    norm_total_done = adata.uns.get("normalization", {}).get("target_sum") == 1e4
-    return log1p_normalized and norm_total_done
+# Récupérer les valeurs du gène (en préservant le sparse)
+    gene_data = adata[:, gene].X
+    if hasattr(gene_data, "toarray"):
+        gene_data = gene_data.toarray().flatten()
+    else:
+        gene_data = gene_data.flatten()
+
+    # Vérifier si les valeurs sont dans une plage typique après normalisation log1p + CPM
+    # - Après log1p, les valeurs sont généralement entre 0 et ~10 (rarement > 20)
+    # - Après CPM, la moyenne est souvent autour de 1-5
+    is_log1p = np.all(gene_data >= 0) and np.max(gene_data) < 20
+    is_cpm = np.mean(gene_data) > 0.1 and np.mean(gene_data) < 10
+    return is_log1p and is_cpm
+
+def is_log1p_normalized(gene_data) -> bool:
+    """Vérifie si les données sont log1pées."""
+    return np.all(gene_data >= 0) and np.max(gene_data) < 20
+
+def is_cpm_normalized(gene_data) -> bool:
+    """Vérifie si les données sont CPMées."""
+    return np.mean(gene_data) > 0.1 and np.mean(gene_data) < 10
 
 def plot_gene_expression(
     adata,
+    gene: Union[str, List[str]],
     plot_types: Optional[List[str]] = None,
 ) -> None:
     """
@@ -34,18 +52,39 @@ def plot_gene_expression(
     # Vérification/normalisation pour ces gènes
     adata_sub = adata[:, gene_indices].copy()
 
+    # Vérifier et normaliser UNIQUEMENT les gènes non normalisés
+    for g in genes:
+        if not is_gene_normalized(adata_sub, g):
+            # Normaliser uniquement ce gène dans adata_sub
+            sc.pp.normalize_total(adata_sub[:, [g]], target_sum=1e4, inplace=True)
+            sc.pp.log1p(adata_sub[:, [g]], inplace=True)
+
     # Visualisations
+    if plot_types is None or "umap_cluster" in plot_types:
+        sc.pl.umap(adata_sub, color=genes, show=False)
     if plot_types is None or "violin" in plot_types:
         sc.pl.violin(adata_sub, keys=genes, show=False)
     if plot_types is None or "histogram" in plot_types:
-        pass
+        sc.pl.histogram(adata_sub, keys=genes, show=False)
     if plot_types is None or "umap" in plot_types:
         sc.pl.umap(adata_sub, color=genes, show=False)
 
     # 6. Affichage des visualisations
     for plot_type in plot_types:
         try:
-            if plot_type == "violin":
+            if plot_type == "umap_cluster":
+                st.subheader(f"UMAP par clusters (Louvain)")
+                fig, ax = plt.subplots()
+                sc.pl.umap(
+                adata,
+                color="louvain",  
+                palette="viridis",  
+                legend_loc="on data",  
+                legend_fontsize=8,  
+                size=50,
+                )
+
+            elif plot_type == "violin":
                 st.subheader(f"Violin plot : {', '.join(genes)}")
                 fig, ax = plt.subplots()
                 sc.pl.violin(
