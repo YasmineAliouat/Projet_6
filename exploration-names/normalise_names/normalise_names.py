@@ -35,6 +35,25 @@ def mapping(adata, data, grouped_names, mapping_dict):
             adata.var[out_col]=data.map(grouped_names[biomart_col]) 
     return adata
 
+def biomart_query_with_fallback(organism, cols):
+    """
+    Cette fonction interroge BioMart avec un ou plusieurs hosts de secours.
+    """
+    hosts = [
+        "http://www.ensembl.org",
+        "http://useast.ensembl.org",
+        "http://asia.ensembl.org",
+    ]
+
+    last_error = None
+
+    for host in hosts:
+        try:
+            return biomart_annotations(organism, cols, host=host)
+        except Exception as e:
+            last_error = e
+
+    raise last_error
 
 def add_biomart_names(adata, organism="hsapiens"):
     """
@@ -52,7 +71,7 @@ def add_biomart_names(adata, organism="hsapiens"):
     cols1= [
         "ensembl_gene_id", "external_gene_name", "hgnc_symbol", "hgnc_id",
     ]
-    grp1= make_groups(biomart_annotations(organism, cols1))
+    grp1 = make_groups(biomart_query_with_fallback(organism, cols1))
     adata= mapping(adata, ids, grp1, {"external_gene_name": "gene_symbol", 
     "hgnc_symbol":"hgnc_symbol" , "hgnc_id": "hgnc_id"})
 
@@ -61,7 +80,7 @@ def add_biomart_names(adata, organism="hsapiens"):
         "ensembl_gene_id", "external_synonym", "entrezgene_id",
     "refseq_mrna",
     ]
-    grp2= make_groups(biomart_annotations(organism, cols2))
+    grp2 = make_groups(biomart_query_with_fallback(organism, cols2))
     adata= mapping(adata, ids, grp2, {
     "external_synonym":"alias_symbol" , "entrezgene_id": "NCBI_symbol", "refseq_mrna": "refseq_mrna"})
 
@@ -69,7 +88,7 @@ def add_biomart_names(adata, organism="hsapiens"):
     cols3= [
         "ensembl_gene_id", "uniprotswissprot", "uniprotsptrembl"
     ]
-    grp3= make_groups(biomart_annotations(organism, cols3))
+    grp3 = make_groups(biomart_query_with_fallback(organism, cols3))
     adata= mapping(adata, ids, grp3, {
     "uniprotswissprot": "uniprot_swissprot", "uniprotsptrembl": "uniprot_sptrembl"})
 
