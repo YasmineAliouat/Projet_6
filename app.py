@@ -208,7 +208,7 @@ with tab2:
     plot_types = (
         ["scatter"] * show_scatter +
         ["heatmap"] * show_heatmap +
-        ["umap_coexpression"] * show_umap_coexp
+        ["umap"] * show_umap_coexp
     )
 
     if run_coexp:

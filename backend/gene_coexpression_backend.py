@@ -135,7 +135,6 @@ def plot_gene_expression(
                     zmin=-1,
                     zmax=1,
                     aspect="auto",
-                    title="Matrice de corrélation entre gènes"
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
@@ -155,15 +154,15 @@ def plot_gene_expression(
                 b_pos = expr_b > thr_b
 
                 cats = np.full(adata_sub.n_obs, "none", dtype=object)
-                cats[a_pos & ~b_pos] = "A_only"
-                cats[~a_pos & b_pos] = "B_only"
+                cats[a_pos & ~b_pos] = f"{genes[0]} only"
+                cats[~a_pos & b_pos] = f"{genes[1]} only"
                 cats[a_pos & b_pos] = "both"
 
                 obs_key = f"coexp_{gene_a}_{gene_b}"
 
                 adata_sub.obs[obs_key] = pd.Categorical(
                     cats,
-                    categories=["none", "A_only", "B_only", "both"],
+                    categories=["none", f"{genes[0]} only", f"{genes[1]} only", "both"],
                     ordered=True
                 )
 
