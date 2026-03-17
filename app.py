@@ -159,7 +159,7 @@ with tab1:
     plot_types = (
         ["violin"] * show_violin +
         ["histogram"] * show_hist +
-        ["umap"] * show_umap
+        ["umap"] * show_umap +
         ["umap_clusters"] * show_umap_clusters
     )
 
@@ -179,7 +179,7 @@ with tab1:
                 geb.plt = plt
                 geb.gene = resolved_gene
 
-                geb.plot_gene_expression(adata, plot_types=plot_types)
+                geb.plot_gene_expression(adata, resolved_gene, plot_types=plot_types)
 
             except Exception as e:
                 st.error(f"Error: {e}")
