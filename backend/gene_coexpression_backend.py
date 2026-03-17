@@ -5,6 +5,9 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 from typing import Union, List, Optional
+import plotly.express as px
+from scipy.stats import pearsonr
+
 
 
 def is_gene_normalized(adata, gene: str) -> bool:
@@ -50,43 +53,66 @@ def plot_gene_expression(
     for plot_type in plot_types:
         try:
             if plot_type == "scatter":
-                st.subheader(f"Scatter plot : {genes[0]} vs {genes[1]}")
-                
-                gene_a = genes[0]
-                gene_b = genes[1]
+                if plot_type == "scatter":
+                    st.subheader(f"Scatter plot : {genes[0]} vs {genes[1]}")
 
-                # Extraire les expressions
-                expr_a = adata_sub[:, gene_a].X.toarray().flatten()
-                expr_b = adata_sub[:, gene_b].X.toarray().flatten()
+                    gene_a, gene_b = genes[0], genes[1]
 
-                # DataFrame pour Plotly
-                df = pd.DataFrame({
-                    gene_a: expr_a,
-                    gene_b: expr_b,
-                    "Cluster": adata_sub.obs["louvain"]
-                })
+                    # Extraire les données (log CPM)
+                    expr_a = adata_sub[:, gene_a].X.toarray().flatten()
+                    expr_b = adata_sub[:, gene_b].X.toarray().flatten()
+                    clusters = adata_sub.obs["louvain"].astype(str).values  # Garder les clusters Louvain
 
-                # Scatter plot
-                fig = px.scatter(
-                    df,
-                    x=gene_a,
-                    y=gene_b,
-                    color="Cluster",
-                    marginal_x="histogram",
-                    marginal_y="histogram",
-                    title=f"Co-expression de {gene_a} et {gene_b}",
-                    labels={
-                        gene_a: f"Expression {gene_a} (log CPM)",
-                        gene_b: f"Expression {gene_b} (log CPM)"
-                    }
-                )
+                    # Créer le DataFrame
+                    df = pd.DataFrame({
+                        gene_a: expr_a,
+                        gene_b: expr_b,
+                        "Cluster": clusters
+                    })
 
-                fig.update_traces(
-                    marker=dict(size=5, opacity=0.5),
-                    selector=dict(type="scatter")
-                )
+                    # Créer le scatter plot
+                    fig = px.scatter(
+                        df,
+                        x=gene_a,
+                        y=gene_b,
+                        color="Cluster",
+                        color_discrete_sequence=px.colors.qualitative.Plotly,  # Utilise la palette Plotly
+                        marginal_x="histogram",
+                        marginal_y="histogram",
+                        labels={
+                            gene_a: f"Expression {gene_a} (log CPM)",
+                            gene_b: f"Expression {gene_b} (log CPM)"
+                        }
+                    )
 
-                st.plotly_chart(fig, use_container_width=True)
+                    # Personnalisation des points
+                    fig.update_traces(
+                        marker=dict(size=5, opacity=0.6, line=dict(width=0.5, color='DarkSlateGrey')),
+                        selector=dict(mode='markers')
+                    )
+
+                    # Calculer les coefficients de corrélation par cluster
+                    corr_text = ""
+                    for cluster in df["Cluster"].unique():
+                        cluster_data = df[df["Cluster"] == cluster]
+                        if len(cluster_data) > 2:  # Pearson nécessite au moins 3 points
+                            r, _ = pearsonr(cluster_data[gene_a], cluster_data[gene_b])
+                            corr_text += f"Cluster {cluster}: R = {r:.2f}<br>"
+
+                    # Ajouter l'encadré avec les coefficients
+                    fig.add_annotation(
+                        xref="paper", yref="paper",
+                        x=0.95, y=0.95,
+                        text=corr_text,
+                        showarrow=False,
+                        bordercolor="#c7c7c7",
+                        borderwidth=1,
+                        borderpad=4,
+                        bgcolor="#ffffff",
+                        font=dict(size=12)
+                    )
+
+                    st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "heatmap":
                 st.subheader(f"Heatmap : {', '.join(genes[:5])}")
