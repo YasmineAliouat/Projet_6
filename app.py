@@ -150,17 +150,17 @@ with tab1:
     c1, c2, c3, c4 = st.columns(4)
 
     show_umap_clusters = c1.checkbox("UMAP_clusters", value=True, key="sg_show_umap_clusters")
-    show_hist = c2.checkbox("Histogram", value=True, key="sg_show_hist")
-    show_violin = c3.checkbox("Violin", value=True, key="sg_show_violin")
-    show_umap = c4.checkbox("UMAP", value=True, key="sg_show_umap")
+    show_umap = c2.checkbox("UMAP_gene", value=True, key="sg_show_umap")
+    show_violin = c3.checkbox("Violin", value=True, key="sg_show_violin")    
+    show_hist = c4.checkbox("Histogram", value=True, key="sg_show_hist")
 
     run_single = st.button("Run single gene", key="btn_run_single")
 
     plot_types = (
-        ["violin"] * show_violin +
-        ["histogram"] * show_hist +
+        ["umap_clusters"] * show_umap_clusters +
         ["umap"] * show_umap +
-        ["umap_clusters"] * show_umap_clusters
+        ["violin"] * show_violin +
+        ["histogram"] * show_hist
     )
 
     if run_single:
