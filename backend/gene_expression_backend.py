@@ -38,7 +38,7 @@ def plot_gene_expression(
     if plot_types is None or "violin" in plot_types:
         sc.pl.violin(adata_sub, keys=genes, show=False)
     if plot_types is None or "histogram" in plot_types:
-        sc.pl.histogram(adata_sub, color=genes, show=False)
+        pass
     if plot_types is None or "umap" in plot_types:
         sc.pl.umap(adata_sub, color=genes, show=False)
 
