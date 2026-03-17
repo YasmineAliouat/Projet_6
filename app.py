@@ -229,7 +229,7 @@ with tab2:
                 gcb.gene = [resolved_gene_a, resolved_gene_b]
 
                 with _PlotCapture():
-                    gcb.plot_gene_expression(adata, plot_types=plot_types)
+                    gcb.plot_gene_coexpression(adata, genes=[resolved_gene_a, resolved_gene_b], plot_types=plot_types)
 
             except Exception as e:
                 st.error(f"Error running co-expression backend: {e}")
