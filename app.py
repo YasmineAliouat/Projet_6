@@ -147,11 +147,12 @@ with tab1:
     resolved_gene = gene_resolution(adata, gene_query) if adata is not None and gene_query.strip() else None
 
     st.markdown("**Plots to display:**")
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
 
-    show_hist = c1.checkbox("Histogram", value=True, key="sg_show_hist")
-    show_violin = c2.checkbox("Violin", value=True, key="sg_show_violin")
-    show_umap = c3.checkbox("UMAP", value=True, key="sg_show_umap")
+    show_umap_clusters = c1.checkbox("UMAP_clusters", value=True, key="sg_show_umap_clusters")
+    show_hist = c2.checkbox("Histogram", value=True, key="sg_show_hist")
+    show_violin = c3.checkbox("Violin", value=True, key="sg_show_violin")
+    show_umap = c4.checkbox("UMAP", value=True, key="sg_show_umap")
 
     run_single = st.button("Run single gene", key="btn_run_single")
 
@@ -159,6 +160,7 @@ with tab1:
         ["violin"] * show_violin +
         ["histogram"] * show_hist +
         ["umap"] * show_umap
+        ["umap_clusters"] * show_umap_clusters
     )
 
     if run_single:
