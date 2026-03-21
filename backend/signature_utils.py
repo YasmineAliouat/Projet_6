@@ -52,14 +52,15 @@ def plot_signature_score(adata, gene_list, score_name="signature_score"):
     Calcule et affiche le score de signature sur UMAP.
     """
 
-    # calcul du score
     compute_signature_score(adata, gene_list, score_name)
 
-    # plot UMAP
+    fig, ax = plt.subplots()
+
     sc.pl.umap(
         adata,
         color=score_name,
-        show=False
+        show=False,
+        ax=ax
     )
 
-    plt.show()
+    return fig

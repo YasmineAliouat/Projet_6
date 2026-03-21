@@ -7,7 +7,9 @@ def plot_gene_expression(
     adata,
     gene,
     plot_types: Optional[List[str]] = None,
-) -> None:
+):
+
+    figs = []
 
     for plot_type in plot_types:
         try:
@@ -25,7 +27,7 @@ def plot_gene_expression(
                     ax=ax
                 )
                 st.pyplot(fig)
-                plt.close(fig)
+                figs.append(fig)
 
             elif plot_type == "violin":
                 st.subheader(f"Violin plot : {gene}")
@@ -41,7 +43,7 @@ def plot_gene_expression(
                 ax.set_xlabel("Cluster Louvain")
                 ax.set_ylabel(f"Expression normalisée de {gene}")
                 st.pyplot(fig)
-                plt.close(fig)
+                figs.append(fig)
 
             elif plot_type == "histogram":
                 st.subheader(f"Histogramme : {gene}")
@@ -57,7 +59,7 @@ def plot_gene_expression(
                 ax.set_xlabel("Expression")
                 ax.set_ylabel("Nombre de cellules")
                 st.pyplot(fig)
-                plt.close(fig)
+                figs.append(fig)
 
             elif plot_type == "umap":
                 st.subheader(f"UMAP : {gene}")
@@ -72,7 +74,9 @@ def plot_gene_expression(
                 )
                 ax.set_title(f"Expression de {gene}")
                 st.pyplot(fig)
-                plt.close(fig)
+                figs.append(fig)
 
         except Exception as e:
             st.error(f"Erreur lors de la génération du {plot_type} pour {gene}: {str(e)}")
+
+    return figs

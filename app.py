@@ -11,6 +11,8 @@ import backend.gene_coexpression_backend as gcb
 import backend.signature_utils as su
 
 from Issue_8.load_anndata import load_anndata, summarize_anndata, validate_anndata
+import io
+import zipfile
 
 # Classe pour capturer les figures matplotlib, en remplaçant temporairement plt.show pour éviter l'affichage immédiat des figures, et en collectant les nouvelles figures créées pendant la période de capture. Cela permet de contrôler quand les figures sont affichées dans Streamlit, en les rendant disponibles pour un affichage ultérieur via st.pyplot. 
 class _PlotCapture:
@@ -179,7 +181,26 @@ with tab1:
                 geb.plt = plt
                 geb.gene = resolved_gene
 
-                geb.plot_gene_expression(adata, resolved_gene, plot_types=plot_types)
+                figs = geb.plot_gene_expression(adata, resolved_gene, plot_types=plot_types)
+
+                if figs:
+                    zip_buffer = io.BytesIO()
+
+                    with zipfile.ZipFile(zip_buffer, "w") as zf:
+                        for i, fig in enumerate(figs):
+                            img = io.BytesIO()
+                            fig.savefig(img, format="png", bbox_inches="tight")
+                            img.seek(0)
+                            zf.writestr(f"plot_{i+1}.png", img.read())
+
+                    zip_buffer.seek(0)
+
+                    st.download_button(
+                        "Download all plots",
+                        zip_buffer,
+                        file_name="plots.zip",
+                        mime="application/zip"
+                    )
 
             except Exception as e:
                 st.error(f"Error: {e}")
@@ -189,50 +210,80 @@ with tab2:
     st.subheader("Co-expression (2 genes)")
     adata = st.session_state.dataset
 
-    c1, c2 = st.columns(2)
-    with c1:
-        gene_a_query = st.text_input("Gene A", key="gene_a")
-    with c2:
-        gene_b_query = st.text_input("Gene B", key="gene_b")
+    gene_queries = st.text_area(
+        "Genes (one per line)",
+        placeholder="MYCN\nPHOX2B\nTH",
+        key="coexp_genes"
+    )
 
-    resolved_gene_a = gene_resolution(adata, gene_a_query) if adata is not None and gene_a_query.strip() else None
-    resolved_gene_b = gene_resolution(adata, gene_b_query) if adata is not None and gene_b_query.strip() else None
+    genes_list = [g.strip() for g in gene_queries.split("\n") if g.strip()]
+
+    resolved_genes = [
+        gene_resolution(adata, g) for g in genes_list
+    ] if adata and genes_list else []
 
     st.markdown("**Plots to display:**")
     p1, p2, p3 = st.columns(3)
 
-    show_umap_coexp = p1.checkbox("UMAP", value=True, key="coexp_show_umap")
-    show_scatter = p2.checkbox("Scatter", value=True, key="coexp_show_scatter")
-    show_heatmap = p3.checkbox("Heatmap", value=False, key="coexp_show_heatmap")
+    show_umap = p1.checkbox("UMAP", True)
+    show_scatter = p2.checkbox("Scatter", True)
+    show_heatmap = p3.checkbox("Heatmap", False)
 
-    run_coexp = st.button("Run co-expression", key="btn_run_coexp")
+    run_coexp = st.button("Run co-expression")
 
     plot_types = (
         ["scatter"] * show_scatter +
         ["heatmap"] * show_heatmap +
-        ["umap"] * show_umap_coexp
+        ["umap"] * show_umap
     )
 
     if run_coexp:
         if adata is None:
             st.error("Load a dataset first.")
-        elif not (gene_a_query.strip() and gene_b_query.strip()):
-            st.error("Please enter two genes.")
-        elif resolved_gene_a is None or resolved_gene_b is None:
-            st.error("Please resolve both genes first.")
+        elif len(genes_list) < 2:
+            st.error("Enter at least 2 genes.")
+        elif any(g is None for g in resolved_genes):
+            st.error("Invalid gene(s).")
         elif not plot_types:
-            st.warning("Select at least one plot type.")
+            st.warning("Select at least one plot.")
         else:
             try:
                 gcb.st = st
                 gcb.plt = plt
-                gcb.gene = [resolved_gene_a, resolved_gene_b]
 
-                with _PlotCapture():
-                    gcb.plot_gene_coexpression(adata, genes=[resolved_gene_a, resolved_gene_b], plot_types=plot_types)
+                figs = gcb.plot_gene_coexpression(
+                    adata,
+                    genes=resolved_genes,
+                    plot_types=plot_types
+                )
+
+                if figs:
+                    zip_buffer = io.BytesIO()
+
+                    with zipfile.ZipFile(zip_buffer, "w") as zf:
+                        for i, fig in enumerate(figs):
+
+                            img = io.BytesIO()
+
+                            if hasattr(fig, "write_image"):
+                                fig.write_image(img, format="png")
+                            else:
+                                fig.savefig(img, format="png", bbox_inches="tight")
+
+                            img.seek(0)
+                            zf.writestr(f"plot_{i+1}.png", img.read())
+
+                    zip_buffer.seek(0)
+
+                    st.download_button(
+                        "Download all plots",
+                        zip_buffer,
+                        file_name="coexpression_plots.zip",
+                        mime="application/zip"
+                    )
 
             except Exception as e:
-                st.error(f"Error running co-expression backend: {e}")
+                st.error(f"Error: {e}")
 
 # ---------------- TAB 3 ----------------
 with tab3:
@@ -259,8 +310,21 @@ with tab3:
                 st.error("Please enter at least one gene.")
             else:
                 try:
-                    su.plot_signature_score(adata, gene_list)
-                    st.pyplot(plt.gcf())
+                    fig = su.plot_signature_score(adata, gene_list)
+
+                    st.pyplot(fig)
+
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format="png", bbox_inches="tight")
+                    buf.seek(0)
+
+                    st.download_button(
+                        "Download plot",
+                        buf,
+                        file_name="signature_plot.png",
+                        mime="image/png"
+                    )
+
                 except Exception as e:
                     st.error(f"Error running signature backend: {e}")
 

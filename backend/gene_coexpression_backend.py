@@ -11,7 +11,9 @@ def plot_gene_coexpression(
     adata,
     genes: List[str],
     plot_types: Optional[List[str]] = None,
-) -> None:
+):
+
+    figs = []
 
     gene_a, gene_b = genes[0], genes[1]
 
@@ -50,14 +52,12 @@ def plot_gene_coexpression(
                     opacity=0.6
                 )
 
-                # Calculer les coefficients de corrélation par cluster
                 corr_text = ""
                 for cluster in df["Cluster"].unique():
                     cluster_data = df[df["Cluster"] == cluster]
-                    if len(cluster_data) > 2:  # Pearson nécessite au moins 3 points
+                    if len(cluster_data) > 2:
                         r, _ = pearsonr(cluster_data[gene_a], cluster_data[gene_b])
                         corr_text += f"Cluster {cluster}: R = {r:.2f}<br>"
-                
 
                 fig.add_annotation(
                     xref="paper", yref="paper",
@@ -68,10 +68,11 @@ def plot_gene_coexpression(
                     borderwidth=1,
                     borderpad=4,
                     bgcolor="white",
-                    font=dict(size=12, color="black")
+                    font=dict(size=12)
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
+                figs.append(fig)
 
             elif plot_type == "heatmap":
 
@@ -94,11 +95,11 @@ def plot_gene_coexpression(
                     text_auto=True,
                     color_continuous_scale="RdBu_r",
                     zmin=-1,
-                    zmax=1,
-                    aspect="auto",
+                    zmax=1
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
+                figs.append(fig)
 
             elif plot_type == "umap":
 
@@ -115,11 +116,8 @@ def plot_gene_coexpression(
                 expr_a = np.asarray(expr_a).flatten()
                 expr_b = np.asarray(expr_b).flatten()
 
-                thr_a = 0.0
-                thr_b = 0.0
-
-                a_pos = expr_a > thr_a
-                b_pos = expr_b > thr_b
+                a_pos = expr_a > 0
+                b_pos = expr_b > 0
 
                 categories = np.full(adata.n_obs, "none", dtype=object)
                 categories[a_pos & ~b_pos] = f"{gene_a} only"
@@ -128,31 +126,22 @@ def plot_gene_coexpression(
 
                 obs_key = f"coexp_{gene_a}_{gene_b}"
 
-                adata.obs[obs_key] = pd.Categorical(
-                    categories,
-                    categories=["none", f"{gene_a} only", f"{gene_b} only", "both"],
-                    ordered=True
-                )
-
-                adata.uns[f"{obs_key}_colors"] = [
-                    "lightgrey",
-                    "deepskyblue",
-                    "lightcoral",
-                    "indigo"
-                ]
+                adata.obs[obs_key] = pd.Categorical(categories)
 
                 fig, ax = plt.subplots()
 
                 sc.pl.umap(
                     adata,
                     color=obs_key,
-                    legend_loc="right margin",
                     show=False,
                     ax=ax
                 )
 
                 st.pyplot(fig)
+                figs.append(fig)
                 plt.close(fig)
 
         except Exception as e:
-            st.error(f"Erreur lors de la génération du {plot_type} : {str(e)}")
+            st.error(f"Erreur lors de {plot_type} : {str(e)}")
+
+    return figs
