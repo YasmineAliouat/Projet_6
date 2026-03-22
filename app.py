@@ -137,7 +137,7 @@ with st.expander("Dataset report", expanded=False):
         cols[3].metric("Layers", len(rep.layers))
 
 # Tabs for different analyses : trois onglets sont créés pour différentes analyses de l'expression génique. Le premier onglet est dédié à l'expression d'un seul gène, le deuxième à la co-expression de deux gènes, et le troisième au calcul d'un score de signature basé sur une liste de gènes. Chaque onglet contient des champs d'entrée spécifiques pour les paramètres de l'analyse, des options pour sélectionner les types de graphiques à afficher, et un bouton pour lancer l'analyse correspondante.
-tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression (2 genes)", "Signature score"])
+tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression (2 genes)", "Co-expression (multiple genes)"])
 
 # ---------------- TAB 1 ----------------
 with tab1:
@@ -153,7 +153,7 @@ with tab1:
 
     show_umap_clusters = c1.checkbox("UMAP_clusters", value=True, key="sg_show_umap_clusters")
     show_umap = c2.checkbox("UMAP_gene", value=True, key="sg_show_umap")
-    show_violin = c3.checkbox("Violin", value=True, key="sg_show_violin")    
+    show_violin = c3.checkbox("Violin_plot", value=True, key="sg_show_violin")    
     show_hist = c4.checkbox("Histogram", value=True, key="sg_show_hist")
 
     run_single = st.button("Run single gene", key="btn_run_single")
@@ -226,7 +226,7 @@ with tab2:
     p1, p2, p3 = st.columns(3)
 
     show_umap = p1.checkbox("UMAP", True)
-    show_scatter = p2.checkbox("Scatter", True)
+    show_scatter = p2.checkbox("Scatter_plot", True)
     show_heatmap = p3.checkbox("Heatmap", False)
 
     run_coexp = st.button("Run co-expression")
