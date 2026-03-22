@@ -30,7 +30,7 @@ def plot_gene_expression(
                 figs.append(fig)
 
             elif plot_type == "violin":
-                st.subheader(f"Violin plot : {gene}")
+                st.subheader(f"Violin plot de {gene}")
                 fig, ax = plt.subplots()
                 sc.pl.violin(
                     adata,
@@ -41,12 +41,12 @@ def plot_gene_expression(
                     stripplot=False
                 )
                 ax.set_xlabel("Cluster Louvain")
-                ax.set_ylabel(f"Expression normalisée de {gene}")
+                ax.set_ylabel(f"Expression normalisée de {gene} (log1p)")
                 st.pyplot(fig)
                 figs.append(fig)
 
             elif plot_type == "histogram":
-                st.subheader(f"Histogramme : {gene}")
+                st.subheader(f"Histogramme de {gene}")
 
                 expr = adata[:, gene].X
                 if hasattr(expr, "toarray"):
@@ -56,13 +56,13 @@ def plot_gene_expression(
                 fig, ax = plt.subplots()
                 ax.hist(expr, bins=50)
                 ax.set_title(f"Distribution de {gene}")
-                ax.set_xlabel("Expression")
+                ax.set_xlabel(f"Expression normalisée de {gene} (log1p)")
                 ax.set_ylabel("Nombre de cellules")
                 st.pyplot(fig)
                 figs.append(fig)
 
             elif plot_type == "umap":
-                st.subheader(f"UMAP : {gene}")
+                st.subheader(f"UMAP de {gene}")
                 fig, ax = plt.subplots()
                 sc.pl.umap(
                     adata,
@@ -72,7 +72,7 @@ def plot_gene_expression(
                     show=False,
                     ax=ax
                 )
-                ax.set_title(f"Expression de {gene}")
+                ax.set_title(f"Expression normalisée de {gene} (log1p)")
                 st.pyplot(fig)
                 figs.append(fig)
 
