@@ -2,7 +2,6 @@ import numpy as np
 import scanpy as sc
 import pandas as pd
 import plotly.express as px
-import matplotlib.pyplot as plt
 import streamlit as st
 from typing import List, Optional
 from scipy.stats import pearsonr
@@ -21,7 +20,7 @@ def plot_gene_coexpression(
         try:
             if plot_type == "scatter":
 
-                st.subheader(f"Scatter plot : {gene_a} vs {gene_b}")
+                st.subheader(f"Scatter plot de {gene_a} vs {gene_b}")
 
                 expr_a = adata[:, gene_a].X
                 expr_b = adata[:, gene_b].X
@@ -74,36 +73,9 @@ def plot_gene_coexpression(
                 st.plotly_chart(fig, use_container_width=True)
                 figs.append(fig)
 
-            elif plot_type == "heatmap":
-
-                st.subheader(f"Heatmap corrélation : {gene_a}, {gene_b}")
-
-                expr_matrix = adata[:, [gene_a, gene_b]].X
-                if hasattr(expr_matrix, "toarray"):
-                    expr_matrix = expr_matrix.toarray()
-
-                corr_matrix = np.corrcoef(expr_matrix.T)
-
-                corr_df = pd.DataFrame(
-                    corr_matrix,
-                    index=[gene_a, gene_b],
-                    columns=[gene_a, gene_b]
-                )
-
-                fig = px.imshow(
-                    corr_df,
-                    text_auto=True,
-                    color_continuous_scale="RdBu_r",
-                    zmin=-1,
-                    zmax=1
-                )
-
-                st.plotly_chart(fig, use_container_width=True)
-                figs.append(fig)
-
             elif plot_type == "umap":
 
-                st.subheader(f"UMAP co-expression : {gene_a} / {gene_b}")
+                st.subheader(f"UMAP co-expression de {gene_a} vs {gene_b}")
 
                 expr_a = adata[:, gene_a].X
                 expr_b = adata[:, gene_b].X
@@ -128,18 +100,25 @@ def plot_gene_coexpression(
 
                 adata.obs[obs_key] = pd.Categorical(categories)
 
+                custom_palette = {
+                    "none": "darkgray",       
+                    f"{gene_a} only": "mediumseagreen",  
+                    f"{gene_b} only": "darkorange",  
+                    "both": "purple"         
+                }
+
                 fig, ax = plt.subplots()
 
                 sc.pl.umap(
                     adata,
                     color=obs_key,
+                    palette=custom_palette,
                     show=False,
                     ax=ax
                 )
 
                 st.pyplot(fig)
                 figs.append(fig)
-                plt.close(fig)
 
         except Exception as e:
             st.error(f"Erreur lors de {plot_type} : {str(e)}")
