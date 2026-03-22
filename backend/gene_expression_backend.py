@@ -19,7 +19,6 @@ def plot_gene_expression(
                 sc.pl.umap(
                     adata,
                     color="louvain",
-                    palette="viridis",
                     legend_loc="on data",
                     legend_fontsize=8,
                     size=50,
@@ -67,7 +66,7 @@ def plot_gene_expression(
                 sc.pl.umap(
                     adata,
                     color=gene,
-                    color_map="viridis",
+                    color_map="inferno",
                     size=50,
                     show=False,
                     ax=ax
