@@ -2,19 +2,17 @@ import importlib
 import importlib.util
 from pathlib import Path
 from typing import Optional
-
 import matplotlib.pyplot as plt
 import scanpy as sc
 import streamlit as st
-
 import backend.gene_coexpression_backend as gcb
 import backend.signature_utils as su
-
+import backend.heatmap_backend as hb
 from Issue_8.load_anndata import load_anndata, summarize_anndata, validate_anndata
 import io
 import zipfile
 
-# Classe pour capturer les figures matplotlib, en remplaçant temporairement plt.show pour éviter l'affichage immédiat des figures, et en collectant les nouvelles figures créées pendant la période de capture. Cela permet de contrôler quand les figures sont affichées dans Streamlit, en les rendant disponibles pour un affichage ultérieur via st.pyplot. 
+# Class to capture matplotlib figures, temporarily overriding plt.show to prevent immediate display of figures, and collecting new figures created during the capture period. This allows control over when figures are displayed in Streamlit, making them available for later display via st.pyplot.
 class _PlotCapture:
     def __enter__(self):
         self._old_show = plt.show
@@ -30,7 +28,7 @@ class _PlotCapture:
         new_nums = sorted(list(self._after - self._before))
         return [plt.figure(n) for n in new_nums]
 
-# Cette fonction charge un fichier AnnData à partir du chemin spécifié, valide sa structure, et génère un résumé de ses caractéristiques. En utilisant le décorateur @st.cache_resource, les résultats de cette fonction sont mis en cache par Streamlit, ce qui permet d'éviter de recharger et de traiter le même fichier plusieurs fois, améliorant ainsi les performances lors de l'exploration interactive des données.
+#This function loads an AnnData file from the specified path, validates its structure, and generates a summary of its characteristics. By using the @st.cache_resource decorator, the results of this function are cached by Streamlit, which avoids reloading and processing the same file multiple times, thus improving performance during interactive data exploration.
 @st.cache_resource
 def cached_load_from_path(path: str):
     adata = load_anndata(path)
@@ -38,7 +36,7 @@ def cached_load_from_path(path: str):
     rep = summarize_anndata(adata)
     return adata, rep
 
-# Cette fonction charge dynamiquement un module Python à partir d'un chemin de fichier spécifique, en utilisant les fonctionnalités d'importation de Python. Le module chargé contient des utilitaires pour la recherche de gènes, et en le mettant en cache avec @st.cache_resource, on s'assure que le module est chargé une seule fois, même si la fonction est appelée plusieurs fois, ce qui améliore les performances lors de l'exploration interactive des données.
+#This function dynamically loads a Python module from a specific file path, using Python's importlib features. The loaded module contains utilities for gene searching, and by caching it with @st.cache_resource, we ensure the module is loaded only once, even if the function is called multiple times, thus improving performance during interactive data exploration.
 @st.cache_resource
 def load_gene_search_utils():
     base_dir = Path(__file__).resolve().parent
@@ -74,12 +72,12 @@ def gene_resolution(adata, query: str):
 
     return var_name
 
-# Configuration de la page Streamlit et titre principal de l'application, avec une description de son objectif. La configuration définit le titre de la page et le layout, tandis que le titre et la description expliquent que l'application est une interface web pour explorer des données de scRNA-seq stockées au format AnnData (.h5ad).
+# Streamlit page configuration and main application title, with a description of its purpose. The configuration defines the page title and layout, while the title and description explain that the application is a web interface for exploring scRNA-seq data stored in AnnData (.h5ad) format.
 st.set_page_config(page_title="scRNA-seq Explorer", layout="wide")
 st.title("Single-cell RNA-seq data explorer")
 st.markdown("Web interface to explore single-cell RNA-seq data stored in **AnnData (.h5ad)**.")
 
-# Sidebar pour le chargement du dataset, avec des champs pour spécifier le chemin du fichier .h5ad, la source d'expression à utiliser (adata.X ou adata.raw), et un bouton pour lancer le chargement. La sidebar affiche également des informations sur le dataset actuellement chargé, si disponible.
+# Sidebar for loading the dataset, with fields to specify the path to the .h5ad file, the expression source to use (adata.X or adata.raw), and a button to start loading. The sidebar also displays information about the currently loaded dataset, if available.
 st.sidebar.header("Dataset")
 data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
 expr_source = st.sidebar.selectbox("Expression source", ["adata.X", "adata.raw"], index=0)
@@ -94,7 +92,7 @@ if "report" not in st.session_state:
 if "dataset_source" not in st.session_state:
     st.session_state.dataset_source = None
 
-# Load logic : lorsque l'utilisateur clique sur le bouton de chargement, le code vérifie si un chemin de dataset a été fourni. Si c'est le cas, il tente de charger le fichier .h5ad en utilisant la fonction cached_load_from_path, qui est mise en cache pour améliorer les performances. Si l'utilisateur a choisi d'utiliser adata.raw comme source d'expression, le code vérifie si adata.raw est présent et le convertit en AnnData si nécessaire. Ensuite, le dataset chargé, le rapport résumé, et la source du dataset sont stockés dans st.session_state pour une utilisation ultérieure dans l'application. Si une erreur survient lors du chargement, un message d'erreur est affiché dans la sidebar.
+# Load logic: When the user clicks the load button, the code checks if a dataset path has been provided. If so, it attempts to load the .h5ad file using the cached_load_from_path function, which is cached to improve performance. If the user has chosen to use adata.raw as the expression source, the code checks if adata.raw is present and converts it to AnnData if necessary. The loaded dataset, summary report, and dataset source are then stored in st.session_state for later use in the application. If an error occurs during loading, an error message is displayed in the sidebar.
 if load_clicked:
     try:
         if not data_path:
@@ -119,7 +117,7 @@ if load_clicked:
 if st.session_state.dataset_source:
     st.sidebar.info(f"Active dataset: {st.session_state.dataset_source}")
 
-# Dataset report : un bloc extensible qui affiche un résumé du dataset actuellement chargé, y compris le nombre de cellules, le nombre de gènes, la disponibilité d'une projection UMAP, et le nombre de couches d'expression. Si aucun dataset n'est chargé, des métriques vides sont affichées. Si un dataset est chargé, les métriques sont remplies avec les informations extraites du rapport résumé généré lors du chargement du dataset.
+# Dataset report: an expandable block that displays a summary of the currently loaded dataset, including the number of cells, the number of genes, the availability of a UMAP projection, and the number of expression layers. If no dataset is loaded, empty metrics are displayed. If a dataset is loaded, the metrics are populated with information extracted from the summary report generated when the dataset was loaded.
 with st.expander("Dataset report", expanded=False):
     rep = st.session_state.report
     adata = st.session_state.dataset
@@ -136,7 +134,7 @@ with st.expander("Dataset report", expanded=False):
         cols[2].metric("UMAP available", "Yes" if "X_umap" in adata.obsm else "No")
         cols[3].metric("Layers", len(rep.layers))
 
-# Tabs for different analyses : trois onglets sont créés pour différentes analyses de l'expression génique. Le premier onglet est dédié à l'expression d'un seul gène, le deuxième à la co-expression de deux gènes, et le troisième au calcul d'un score de signature basé sur une liste de gènes. Chaque onglet contient des champs d'entrée spécifiques pour les paramètres de l'analyse, des options pour sélectionner les types de graphiques à afficher, et un bouton pour lancer l'analyse correspondante.
+# Tabs for different analyses: Three tabs are created for different gene expression analyses. The first tab is dedicated to the expression of a single gene, the second to the co-expression of two genes, and the third to the calculation of a signature score based on a list of genes. Each tab contains specific input fields for the analysis parameters, options to select the types of graphs to display, and a button to launch the corresponding analysis.
 tab1, tab2, tab3 = st.tabs(["Single gene", "Co-expression (2 genes)", "Co-expression (multiple genes)"])
 
 # ---------------- TAB 1 ----------------
@@ -223,17 +221,15 @@ with tab2:
     ] if adata and genes_list else []
 
     st.markdown("**Plots to display:**")
-    p1, p2, p3 = st.columns(3)
+    p1, p2 = st.columns(2)
 
     show_umap = p1.checkbox("UMAP", True)
     show_scatter = p2.checkbox("Scatter_plot", True)
-    show_heatmap = p3.checkbox("Heatmap", False)
 
     run_coexp = st.button("Run co-expression")
 
     plot_types = (
         ["scatter"] * show_scatter +
-        ["heatmap"] * show_heatmap +
         ["umap"] * show_umap
     )
 
@@ -287,9 +283,10 @@ with tab2:
 
 # ---------------- TAB 3 ----------------
 with tab3:
-    st.subheader("Signature score")
+    st.subheader("Signature score & Co-expression")
     adata = st.session_state.dataset
-    st.caption("Compute a gene signature score and visualize it on UMAP.")
+
+    st.caption("Compute a gene signature score and visualize it on UMAP + heatmap.")
 
     sig_text = st.text_area(
         "Signature genes (one per line)",
@@ -298,34 +295,86 @@ with tab3:
         key="sig_text"
     )
 
-    run_sig = st.button("Run signature", key="run_sig")
-    # Lorsque l'utilisateur clique sur le bouton pour lancer le calcul du score de signature, le code vérifie que les conditions nécessaires sont remplies (dataset chargé). Si tout est en ordre, il compile la liste des gènes de la signature à partir du champ de texte, vérifie que la liste n'est pas vide, et appelle la fonction plot_signature_score du module signature_utils pour calculer le score de signature et générer une visualisation UMAP correspondante. Si une erreur survient lors de l'exécution du backend, un message d'erreur est affiché.
+    st.markdown("**Plots to display:**")
+    c1, c2 = st.columns(2)
+
+    show_umap = c1.checkbox("UMAP_signature", True, key="tab3_umap")
+    show_heatmap = c2.checkbox("Heatmap", True, key="tab3_heatmap")
+
+    run_sig = st.button("Run analysis", key="run_sig")
+
+    plot_types = (
+        ["umap"] * show_umap +
+        ["heatmap"] * show_heatmap
+    )
+
     if run_sig:
         if adata is None:
             st.error("Load a dataset first.")
         else:
-            gene_list = [g.strip() for g in sig_text.split("\n") if g.strip()]
+            raw_genes = [g.strip() for g in sig_text.split("\n") if g.strip()]
 
-            if len(gene_list) == 0:
+            resolved_genes = []
+            for g in raw_genes:
+                var_name = gene_resolution(adata, g)
+                if var_name is not None:
+                    resolved_genes.append(var_name)
+
+            if len(resolved_genes) == 0:
                 st.error("Please enter at least one gene.")
+            elif not plot_types:
+                st.warning("Select at least one plot.")
             else:
                 try:
-                    fig = su.plot_signature_score(adata, gene_list)
+                    resolved_genes = [g for g in resolved_genes if g in adata.var_names]
 
-                    st.pyplot(fig)
+                    if len(resolved_genes) == 0:
+                        st.error("None of the input genes are present in the dataset.")
+                    else:
+                        all_figs = []
 
-                    buf = io.BytesIO()
-                    fig.savefig(buf, format="png", bbox_inches="tight")
-                    buf.seek(0)
+                        if show_umap:
+                            st.subheader("UMAP signature score")
 
-                    st.download_button(
-                        "Download plot",
-                        buf,
-                        file_name="signature_plot.png",
-                        mime="image/png"
-                    )
+                            with _PlotCapture() as cap_sig:
+                                su.plot_signature_score(adata, resolved_genes)
+
+                            figs = cap_sig.figures()
+                            for fig in figs:
+                                st.pyplot(fig)
+                            all_figs.extend(figs)
+
+                        if show_heatmap:
+                            st.subheader("Co-expression heatmap")
+
+                            with _PlotCapture() as cap_heat:
+                                hb.coexp_heatmap(adata, resolved_genes)
+
+                            figs = cap_heat.figures()
+                            for fig in figs:
+                                st.pyplot(fig)
+                            all_figs.extend(figs)
+
+                        if all_figs:
+                            zip_buffer = io.BytesIO()
+
+                            with zipfile.ZipFile(zip_buffer, "w") as zf:
+                                for i, fig in enumerate(all_figs):
+                                    img = io.BytesIO()
+                                    fig.savefig(img, format="png", bbox_inches="tight")
+                                    img.seek(0)
+                                    zf.writestr(f"tab3_plot_{i+1}.png", img.read())
+
+                            zip_buffer.seek(0)
+
+                            st.download_button(
+                                "Download all plots",
+                                zip_buffer,
+                                file_name="tab3_plots.zip",
+                                mime="application/zip"
+                            )
 
                 except Exception as e:
-                    st.error(f"Error running signature backend: {e}")
+                    st.error(f"Error running analysis: {e}")
 
 st.caption("Prototype – scRNA-seq data exploration tool")
