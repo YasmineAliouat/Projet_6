@@ -1,12 +1,10 @@
 import scanpy as sc
 import matplotlib.pyplot as plt
-from typing import List, Optional
+from typing import List
 
 def coexp_heatmap(adata, gene_list: List[str]):
 
     try:
-        st.subheader(f"Heatmap d'expression")
-
         fig = sc.pl.heatmap(
             adata,
             var_names=gene_list,
@@ -19,9 +17,7 @@ def coexp_heatmap(adata, gene_list: List[str]):
             figsize=(10, 8),
         )
 
-        plt.show()
-
     except Exception as e:
-        st.error(f"Erreur lors de la génération de la heatmap: {str(e)}")
+        raise RuntimeError(f"Erreur lors de la génération de la heatmap: {str(e)}")
 
     return fig
