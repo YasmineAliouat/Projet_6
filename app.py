@@ -283,15 +283,12 @@ with tab2:
 
 # ---------------- TAB 3 ----------------
 with tab3:
-    st.subheader("Signature score & Co-expression")
+    st.subheader("Co-expression (multiple genes)")
     adata = st.session_state.dataset
 
-    st.caption("Compute a gene signature score and visualize it on UMAP + heatmap.")
-
     sig_text = st.text_area(
-        "Signature genes (one per line)",
+        "Genes (one per line)",
         placeholder="MYCN\nPHOX2B\nTH",
-        height=140,
         key="sig_text"
     )
 
