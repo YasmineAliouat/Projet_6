@@ -1,6 +1,10 @@
 import importlib
-import importlib.util
-from pathlib import Path
+from exploration_names.integration_interface.integration_interface import (
+    resolve_gene_for_streamlit,
+    hits_to_options,
+    suggestions_to_options
+)
+from exploration_names.prepare_names.prepare_names import gene_versions
 from typing import Optional
 import matplotlib.pyplot as plt
 import scanpy as sc
@@ -33,44 +37,11 @@ class _PlotCapture:
 def cached_load_from_path(path: str):
     adata = load_anndata(path)
     validate_anndata(adata)
+    adata = gene_versions(adata)
+    adata.var["base_name"] = adata.var["base_name"].astype(str)
     rep = summarize_anndata(adata)
     return adata, rep
 
-#This function dynamically loads a Python module from a specific file path, using Python's importlib features. The loaded module contains utilities for gene searching, and by caching it with @st.cache_resource, we ensure the module is loaded only once, even if the function is called multiple times, thus improving performance during interactive data exploration.
-@st.cache_resource
-def load_gene_search_utils():
-    base_dir = Path(__file__).resolve().parent
-    module_path = base_dir / "exploration_names" / "gene_search" / "gene_search_utils.py"
-    spec = importlib.util.spec_from_file_location("gene_search_utils_dynamic", module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def gene_resolution(adata, query: str):
-    if not query.strip():
-        return None
-
-    gsu = load_gene_search_utils()
-    var_name, hits, suggestions, match_type = gsu.resolve_gene_to_var_name(
-        adata, query, choice=None, max_hits=30
-    )
-
-    st.markdown("**Gene matches:**")
-
-    if hits is not None and len(hits) > 0:
-        lines = [f"{idx+1}. {row['__var_name__']}" for idx, (_, row) in enumerate(hits.iterrows())]
-        st.code("\n".join(lines), language="text")
-
-    elif suggestions:
-        st.warning("No exact match. Suggestions:")
-        for s in suggestions:
-            st.write(f"- {s}")
-
-    else:
-        st.error("No result found.")
-
-    return var_name
 
 # Streamlit page configuration and main application title, with a description of its purpose. The configuration defines the page title and layout, while the title and description explain that the application is a web interface for exploring scRNA-seq data stored in AnnData (.h5ad) format.
 st.set_page_config(page_title="scRNA-seq Explorer", layout="wide")
@@ -144,8 +115,33 @@ with tab1:
 
     gene_query = st.text_input("Gene name", placeholder="e.g. MYCN", key="gene_single")
 
-    resolved_gene = gene_resolution(adata, gene_query) if adata is not None and gene_query.strip() else None
+    resolved_gene = None
 
+    if adata is not None and gene_query.strip():
+        result = resolve_gene_for_streamlit(adata, gene_query)
+
+        if result["status"] == "exact":
+            resolved_gene = result["var_name"]
+
+        elif result["status"] == "multiple":
+            options = hits_to_options(result["hits"])
+            labels = [x[0] for x in options]
+            label_to_var = {x[0]: x[1] for x in options}
+
+            selected = st.selectbox("Select a gene", labels, key="sg_select")
+            resolved_gene = label_to_var[selected]
+
+        elif result["status"] == "suggestions":
+            options = suggestions_to_options(adata, result["suggestions"])
+            labels = [x[0] for x in options]
+            label_to_var = {x[0]: x[1] for x in options}
+
+            selected = st.selectbox("Suggestions", labels, key="sg_suggest")
+            resolved_gene = label_to_var[selected]
+
+        else:
+            st.error("No result found.")
+    
     st.markdown("**Plots to display:**")
     c1, c2, c3, c4 = st.columns(4)
 
@@ -216,10 +212,38 @@ with tab2:
 
     genes_list = [gene_a, gene_b]
 
-    resolved_genes = [
-        gene_resolution(adata, gene_a) if gene_a.strip() else None,
-        gene_resolution(adata, gene_b) if gene_b.strip() else None,
-    ] if adata else []
+    resolved_genes = []
+
+    if adata:
+        for gene, key in [(gene_a, "A"), (gene_b, "B")]:
+            if not gene.strip():
+                resolved_genes.append(None)
+                continue
+
+            result = resolve_gene_for_streamlit(adata, gene)
+
+            if result["status"] == "exact":
+                resolved_genes.append(result["var_name"])
+
+            elif result["status"] == "multiple":
+                options = hits_to_options(result["hits"])
+                labels = [x[0] for x in options]
+                label_to_var = {x[0]: x[1] for x in options}
+
+                selected = st.selectbox(f"Select gene {key}", labels, key=f"tab2_select_{key}")
+                resolved_genes.append(label_to_var[selected])
+
+            elif result["status"] == "suggestions":
+                options = suggestions_to_options(adata, result["suggestions"])
+                labels = [x[0] for x in options]
+                label_to_var = {x[0]: x[1] for x in options}
+
+                selected = st.selectbox(f"Suggestions gene {key}", labels, key=f"tab2_suggest_{key}")
+                resolved_genes.append(label_to_var[selected])
+
+            else:
+                st.error(f"No result for gene {key}")
+                resolved_genes.append(None)
 
     st.markdown("**Plots to display:**")
     p1, p2 = st.columns(2)
@@ -299,27 +323,73 @@ with tab3:
     show_umap = c1.checkbox("UMAP_signature", True, key="tab3_umap")
     show_heatmap = c2.checkbox("Heatmap", True, key="tab3_heatmap")
 
-    run_sig = st.button("Run analysis", key="run_sig")
+    if "tab3_run" not in st.session_state:
+        st.session_state.tab3_run = False
+
+    if st.button("Run analysis", key="run_sig"):
+        st.session_state.tab3_run = True
 
     plot_types = (
         ["umap"] * show_umap +
         ["heatmap"] * show_heatmap
     )
 
-    if run_sig:
+    if st.session_state.tab3_run:
         if adata is None:
             st.error("Load a dataset first.")
         else:
             raw_genes = [g.strip() for g in sig_text.split("\n") if g.strip()]
 
             resolved_genes = []
-            for g in raw_genes:
-                var_name = gene_resolution(adata, g)
-                if var_name is not None:
-                    resolved_genes.append(var_name)
+            invalid_genes = []
+            selection_needed = False
+
+            for i, g in enumerate(raw_genes):
+                result = resolve_gene_for_streamlit(adata, g)
+
+                if result["status"] == "exact":
+                    resolved_genes.append(result["var_name"])
+
+                elif result["status"] == "multiple":
+                    options = hits_to_options(result["hits"])
+                    labels = [x[0] for x in options]
+                    label_to_var = {x[0]: x[1] for x in options}
+
+                    selected = st.selectbox(
+                        f"Select match for '{g}'",
+                        labels,
+                        key=f"tab3_select_{i}"
+                    )
+
+                    resolved_genes.append(label_to_var[selected])
+                    selection_needed = True
+
+                elif result["status"] == "suggestions":
+                    options = suggestions_to_options(adata, result["suggestions"])
+                    labels = [x[0] for x in options]
+                    label_to_var = {x[0]: x[1] for x in options}
+
+                    selected = st.selectbox(
+                        f"Suggestions for '{g}'",
+                        labels,
+                        key=f"tab3_suggest_{i}"
+                    )
+
+                    resolved_genes.append(label_to_var[selected])
+                    selection_needed = True
+
+                else:
+                    invalid_genes.append(g)
+
+            if invalid_genes:
+                st.warning(f"Ignored (invalid): {', '.join(invalid_genes)}")
+
+            if selection_needed:
+                st.info("Please validate all gene selections to run the analysis.")
+                st.stop()
 
             if len(resolved_genes) == 0:
-                st.error("Please enter at least one gene.")
+                st.error("No valid genes found.")
             elif not plot_types:
                 st.warning("Select at least one plot.")
             else:
@@ -329,6 +399,8 @@ with tab3:
                     if len(resolved_genes) == 0:
                         st.error("None of the input genes are present in the dataset.")
                     else:
+                        st.write(f"{len(resolved_genes)} valid genes used")
+
                         all_figs = []
 
                         if show_umap:
