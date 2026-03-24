@@ -208,17 +208,18 @@ with tab2:
     st.subheader("Co-expression (2 genes)")
     adata = st.session_state.dataset
 
-    gene_queries = st.text_area(
-        "Genes (one per line)",
-        placeholder="MYCN\nPHOX2B\nTH",
-        key="coexp_genes"
-    )
+    c1, c2 = st.columns(2)
+    with c1:
+        gene_a = st.text_input("Gene A")
+    with c2:
+        gene_b = st.text_input("Gene B")
 
-    genes_list = [g.strip() for g in gene_queries.split("\n") if g.strip()]
+    genes_list = [gene_a, gene_b]
 
     resolved_genes = [
-        gene_resolution(adata, g) for g in genes_list
-    ] if adata and genes_list else []
+        gene_resolution(adata, gene_a) if gene_a.strip() else None,
+        gene_resolution(adata, gene_b) if gene_b.strip() else None,
+    ] if adata else []
 
     st.markdown("**Plots to display:**")
     p1, p2 = st.columns(2)
@@ -236,8 +237,8 @@ with tab2:
     if run_coexp:
         if adata is None:
             st.error("Load a dataset first.")
-        elif len(genes_list) < 2:
-            st.error("Enter at least 2 genes.")
+        elif not (gene_a.strip() and gene_b.strip()):
+            st.error("Enter 2 genes.")
         elif any(g is None for g in resolved_genes):
             st.error("Invalid gene(s).")
         elif not plot_types:
