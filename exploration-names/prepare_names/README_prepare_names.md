@@ -75,6 +75,6 @@ En plus des colonnes `base_name` et `has_versions`, l'application de biomart ajo
 - `uniprot_sptrembl`
 
 > [!NOTE]  
-> Le fichier original n’est jamais modifié sauf si `--save` est utilisé.  
-> BioMart a besoin d'une connection internet pour fonctionner.  
-> La colonne `gene_ids` est requise pour utiliser BioMart.  Si elle est absente, elle sera automatiquement remplacée par `adata.var_names`.
+> - Le fichier original n’est jamais modifié sauf si `--save` est utilisé.  
+> - BioMart a besoin d'une connection internet pour fonctionner.  
+> - La colonne `gene_ids` est requise pour utiliser BioMart.  Si elle est absente, elle sera automatiquement remplacée par `adata.var_names`.
