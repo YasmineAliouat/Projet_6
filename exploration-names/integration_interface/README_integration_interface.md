@@ -17,7 +17,7 @@ Fonction principale pour la recherche de gènes. Prend en entrées `adata`, `que
 
 **Sortie :**
 
-```Python
+```python
 {
     "status": "exact" ou "multiple" ou "suggestions" ou "none",
     "var_name": str ou None,
@@ -30,14 +30,19 @@ Fonction principale pour la recherche de gènes. Prend en entrées `adata`, `que
 ### `hits_to_options`
 Transforme les résultats en options lisibles pour une interface :
 
-```Python
+```python
 (label, var_name)
 ```
 ### `suggestions_to_options`
 Transforme les suggestions en options sélectionnables pour l’utilisateur.
 
+
+> [!NOTE]
+> - Les modifications sont faites uniquement en mémoire.  
+> - BioMart est optionnel
+
 ## Exemple d'utilisation Streamlit:
-```Python
+```python
 result = resolve_gene_for_streamlit(adata,query,max_hits=20,use_biomart=False,organism="hsapiens")
 
 if result["status"] == "exact":
@@ -58,6 +63,4 @@ Ce module dépend de :
 - `gene_search_utils.py`
 - `prepare_names.py`
 
-> [!NOTE]
-> Les modifications sont faites uniquement en mémoire.  
-> BioMart est optionnel
+
