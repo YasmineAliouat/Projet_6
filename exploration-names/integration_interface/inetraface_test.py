@@ -8,8 +8,8 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from interface_gene_search import resolve_gene_for_streamlit, hits_to_options, suggestions_to_options
-from normalise_names.normalise_names import gene_versions, add_biomart_names
+from integration_interface import resolve_gene_for_streamlit, hits_to_options, suggestions_to_options
+from prepare_names.prepare_names import gene_versions, add_biomart_names
 
 
 

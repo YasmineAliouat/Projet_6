@@ -1,6 +1,6 @@
 import argparse
 import scanpy as sc
-from normalise_names import normalize_adata_in_memory
+from prepare_names import normalize_adata_in_memory
 
 parser = argparse.ArgumentParser(
     description="Préparer les noms des gènes disponibles"

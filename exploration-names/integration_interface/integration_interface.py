@@ -5,7 +5,7 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gene_search.gene_search_utils import resolve_gene_to_var_name
-from normalise_names.normalise_names import gene_versions, add_biomart_names
+from prepare_names.prepare_names import gene_versions, add_biomart_names
 
 def prepare_adata_for_gene_search(adata, use_biomart=False, organism="hsapiens"):
     """

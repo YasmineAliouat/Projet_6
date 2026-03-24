@@ -63,7 +63,8 @@ def add_biomart_names(adata, organism="hsapiens"):
     Séparer en plusieurs requetes car BioMart permet la rechrche de 4 attribus à la fois.
     """
     if "gene_ids" not in adata.var.columns:
-        raise ValueError ("gene_ids manquant")  #Si on utilise un autre fichier
+        print("gene_ids manquant : utilisation de adata.var_names comme fallback")
+        adata.var["gene_ids"] = adata.var_names.astype(str)  #Si on utilise un autre fichier
 
     ids= adata.var["gene_ids"].astype(str)
 

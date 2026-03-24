@@ -1,4 +1,5 @@
-# Description :
+# Search_Gene : 
+## Description :
 Ce script permet de rechercher un gène dans un fichier AnnData(.h5ad) à partir de différents identifiants biologiques.
 
 
@@ -33,18 +34,18 @@ Si l'utilisateur tape `AL390719` le script retourne toutes les versions disponib
 
 
 ## Prérequis :
-Les bibliothéques `scanpy`, `pandas` et `difflib` sont nécessaires pour le fonctionnement de ce script .
+Les bibliothéques `scanpy` et `pandas` sont nécessaires pour le fonctionnement de ce script .
 
-Si necessaie, installer avec:
+Si nécessaire, installer avec:
 
 ```bash
-pip install scanpy pandas difflib
+pip install scanpy pandas
 ```
 
 ## Utilisation :
 
 ```bash
-python search_gene.py chemin/vers/fichier/AnnData <nom_du_gene> --max <n> --choose <version> --interactive --show-partial
+python search_gene.py chemin/vers/fichier/AnnData <nom_du_gene> [--max <n>] [--choose <version>] [--interactive] [--show-partial]
 ```
 
 - `<nom_du_gene>` : Nom du gène recherché.
@@ -65,12 +66,12 @@ Le script utilise les fonctions définies dans le script `gene_search_utils.py` 
 
 Recherche:
 
-```
-python3 search_gene.py /home/lili/Documents/M1/S2/Projet6/adata_3583_new.h5ad TTL7A
+```bash
+python search_gene.py data/adata_3583_new.h5ad TTL7A
 ```
 Résultat:
 
-```
+```bash
 Résultat partiel :
 
 1. METTL7A | gene_ids=ENSG00000185432 | gene_symbol=TMT1A | hgnc_symbol=TMT1A | alias_symbol=DKFZP586A0522|METTL7A | refseq_mrna=NM_014033 | uniprot_swissprot=Q9H8H3 | base_name=METTL7A

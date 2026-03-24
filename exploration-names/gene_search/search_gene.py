@@ -13,8 +13,8 @@ from gene_search_utils import (
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Recherche de gènes dans un .h5ad (tous IDs + gestion versions)")
     p.add_argument("file_path", help="Chemin vers le fichier .h5ad")
-    p.add_argument("query", help="Le mot à rechercher")
-    p.add_argument("--max", type=int, default=30, help="Nombre max de résultats affichés (30 pas défaut)")
+    p.add_argument("query", help="Nom ou identifiant du gène à rechercher")
+    p.add_argument("--max", type=int, default=30, help="Nombre max de résultats affichés (30 par défaut)")
     p.add_argument("--choose", type=int, default=None, help="Choisir directement un résultat")
     p.add_argument("--interactive", action="store_true", help="Demander le choix si plusieurs résultats")
     p.add_argument("--show-partial",action="store_true",help="Afficher les résultats partiels même si un match exact est trouvé",)
@@ -30,50 +30,84 @@ if __name__ == "__main__":
     max_hits=args.max
 )
 
-# Si un résultat existe
-if var_name is not None:
+    # Si un résultat existe
+    if var_name is not None:
 
-    if match_type == "exact":
-        print("Résultat exact :\n")
-    elif match_type == "partial":
-        print("Résultat partiel :\n")
+        if match_type == "exact":
+            print("Résultat exact :\n")
+        elif match_type == "partial":
+            print("Résultat partiel :\n")
 
-    print(format_hits(hits, max_lines=args.max))
-    print("\nGène sélectionné :", var_name)
+        print(format_hits(hits, max_lines=args.max))
+        print("\nGène sélectionné :", var_name)
 
-    if args.show_partial and match_type == "exact":
-        partial_hits = search_gene_partial(adata, args.query, max_hits=args.max)
-
-        if not partial_hits.empty:
-            partial_hits = partial_hits[partial_hits["__var_name__"] != var_name]
+        if args.show_partial and match_type == "exact":
+            partial_hits = search_gene_partial(adata, args.query, max_hits=args.max)
 
             if not partial_hits.empty:
-                print("\nAutres résultats partiels possibles :\n")
-                print(format_hits(partial_hits, max_lines=args.max))
+                partial_hits = partial_hits[partial_hits["__var_name__"] != var_name]
 
-    raise SystemExit(0)
+                if not partial_hits.empty:
+                    print("\nAutres résultats partiels possibles :\n")
+                    print(format_hits(partial_hits, max_lines=args.max))
 
-# Si plusieurs résultats trouvés
-if hits is not None:
-    if match_type == "exact":
-        print("Plusieurs résultats exacts trouvés :\n")
-    elif match_type == "partial":
-        print("Plusieurs résultats partiels trouvés :\n")
+        raise SystemExit(0)
 
-    print(format_hits(hits, max_lines=args.max))
+    # Si plusieurs résultats trouvés
+    if hits is not None:
+        if match_type == "exact":
+            print("Plusieurs résultats exacts trouvés :\n")
+        elif match_type == "partial":
+            print("Plusieurs résultats partiels trouvés :\n")
 
-    if args.interactive:
-        k = int(input(f"\nChoisir une ligne (1..{len(hits)}): ").strip())
-        print("\nNom sélectionné :", choose_var_name(hits, k))
+        print(format_hits(hits, max_lines=args.max))
 
-    raise SystemExit(0)
+        if args.interactive:
+            try:
+                k = int(input(f"\nChoisir une ligne (1..{len(hits)}): ").strip())
+                print("\nNom sélectionné :", choose_var_name(hits, k))
+            except ValueError:
+                print("Choix invalide.")
 
-# Si aucune correspondance mais suggestions proches
+        raise SystemExit(0)
+
+    # Si aucune correspondance mais suggestions proches
+    # Si aucune correspondance mais suggestions proches
 if suggestions:
     print("Aucun résultat exact.")
     print("\nSuggestions possibles :")
-    for s in suggestions:
-        print("-", s)
-    raise SystemExit(0)
+    for i, s in enumerate(suggestions, 1):
+        print(f"{i}. {s}")
 
-print("Aucun résultat.")
+    if args.interactive:
+        try:
+            k = int(input(f"\nChoisir une suggestion (1..{len(suggestions)}): ").strip())
+            chosen_query = suggestions[k - 1]
+
+            var_name2, hits2, suggestions2, match_type2 = resolve_gene_to_var_name(
+                adata,
+                chosen_query,
+                choice=None,
+                max_hits=args.max
+            )
+
+            if var_name2 is not None:
+                if match_type2 == "exact":
+                    print("\nRésultat exact :\n")
+                elif match_type2 == "partial":
+                    print("\nRésultat partiel :\n")
+
+                print(format_hits(hits2, max_lines=args.max))
+                print("\nGène sélectionné :", var_name2)
+
+            elif hits2 is not None:
+                print("\nPlusieurs résultats trouvés :\n")
+                print(format_hits(hits2, max_lines=args.max))
+
+            else:
+                print("\nAucun résultat après sélection de la suggestion.")
+
+        except (ValueError, IndexError):
+            print("Choix invalide.")
+
+    raise SystemExit(0)
