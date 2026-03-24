@@ -4,7 +4,7 @@ import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gene_search.gene_search_utils import resolve_gene_to_var_name
+from exploration_names.gene_search.gene_search_utils import resolve_gene_to_var_name
 from prepare_names.prepare_names import gene_versions, add_biomart_names
 
 def prepare_adata_for_gene_search(adata, use_biomart=False, organism="hsapiens"):
@@ -76,6 +76,8 @@ def resolve_gene_for_streamlit(adata,query,max_hits=20,use_biomart=False,organis
 
     #préparation de adata en mémoire pour la recherche
     adata = prepare_adata_for_gene_search(adata,use_biomart=use_biomart,organism=organism)
+    if "base_name" in adata.var:
+        adata.var["base_name"] = adata.var["base_name"].astype(str)
 
     var_name, hits, suggestions, match_type = resolve_gene_to_var_name(
         adata,
