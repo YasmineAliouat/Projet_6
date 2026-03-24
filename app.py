@@ -40,7 +40,7 @@ def cached_load_from_path(path: str):
 @st.cache_resource
 def load_gene_search_utils():
     base_dir = Path(__file__).resolve().parent
-    module_path = base_dir / "exploration names" / "gene_search" / "gene_search_utils.py"
+    module_path = base_dir / "exploration_names" / "gene_search" / "gene_search_utils.py"
     spec = importlib.util.spec_from_file_location("gene_search_utils_dynamic", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
