@@ -1,4 +1,10 @@
 streamlit
 scanpy
 anndata
+pandas
+numpy
+scipy
+matplotlib
+seaborn
+plotly
 kaleido

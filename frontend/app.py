@@ -1,20 +1,26 @@
 import importlib
-from exploration_names.integration_interface.integration_interface import (
+import matplotlib.pyplot as plt
+from typing import Optional
+import scanpy as sc
+import streamlit as st
+import io
+import zipfile
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from backend.gene_names.integration_interface.integration_interface import (
     resolve_gene_for_streamlit,
     hits_to_options,
     suggestions_to_options
 )
-from exploration_names.prepare_names.prepare_names import gene_versions
-from typing import Optional
-import matplotlib.pyplot as plt
-import scanpy as sc
-import streamlit as st
-import backend.gene_coexpression_backend as gcb
-import backend.signature_utils as su
-import backend.heatmap_backend as hb
-from Issue_8.load_anndata import load_anndata, summarize_anndata, validate_anndata
-import io
-import zipfile
+from backend.gene_names.prepare_names.prepare_names import gene_versions
+from backend.data_loading.load_anndata import load_anndata, summarize_anndata, validate_anndata
+
+import backend.visualization.gene_coexpression as gcb
+import backend.visualization.signature_utils as su
+import backend.visualization.heatmap as hb
 
 # Class to capture matplotlib figures, temporarily overriding plt.show to prevent immediate display of figures, and collecting new figures created during the capture period. This allows control over when figures are displayed in Streamlit, making them available for later display via st.pyplot.
 class _PlotCapture:
@@ -170,7 +176,7 @@ with tab1:
             st.warning("Select at least one plot.")
         else:
             try:
-                geb = importlib.import_module("backend.gene_expression_backend")
+                geb = importlib.import_module("backend.visualization.gene_expression")
                 geb.st = st
                 geb.plt = plt
                 geb.gene = resolved_gene
