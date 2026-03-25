@@ -316,24 +316,27 @@ def suggest_gene_names(adata, query, n=5):
         cand_len = len(cand_up)
         q_len = len(q)
 
-        # 1. contient la query
+        # 1. similarité globale
+        ratio = difflib.SequenceMatcher(None, q, cand_up).ratio()
+
+        if ratio >= 0.5:
+            score = ratio * 100
+
+        # 2. bonus si contient
         if q in cand_up:
-            score = 100
+            score = (score or 0) + 20
 
-        # 2. sous-séquence
+        # 3. bonus si sous-séquence
         elif _is_subsequence(q, cand_up):
-            score = 80
+            score = (score or 0) + 10
 
-        # 3. similarité
-        else:
-            ratio = difflib.SequenceMatcher(None, q, cand_up).ratio()
-            if ratio >= 0.6:
-                score = ratio * 100
-
-        # 4. mots courts proches
+        # 4. proximité de taille
         if score is not None:
-    
-            score += max(0, 20 - abs(cand_len - q_len))
+            score += max(0, 30 - abs(cand_len - q_len) * 5)
+
+            # bonus pour symbole
+            if cand_up.isalpha() and cand_len <= 6:
+                score += 20
 
         if score is not None:
             scored.append((score, cand))
@@ -379,7 +382,20 @@ def search_gene_partial(adata, query, max_hits=50):
     hits["__match_field__"] = match_info.apply(lambda x: x[0])
     hits["__match_value__"] = match_info.apply(lambda x: x[1])
 
-    return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
+    # score de pertinence
+    hits["__score__"] = hits["__match_value__"].apply(
+        lambda x: difflib.SequenceMatcher(None, q.upper(), str(x).upper()).ratio()
+    )
+
+    # scort mots courts
+    hits["__score__"] += hits["__match_value__"].apply(
+        lambda x: max(0, 2 - abs(len(str(x)) - len(q)))
+    )
+
+    # tri final
+    hits = hits.sort_values("__score__", ascending=False)
+
+    return hits[view_cols + ["__match_field__", "__match_value__"]].head(max_hits)
 
 
 def resolve_gene_to_var_name(adata, query, choice=None, max_hits=50):
