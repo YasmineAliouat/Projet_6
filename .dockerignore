@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.git/
+.vscode/
+
+data/
+*.h5ad
