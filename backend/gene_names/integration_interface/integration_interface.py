@@ -178,15 +178,10 @@ def hits_to_options(hits):
         label = var_name
 
         #ajout du symbole du gène
-        if gene_symbol and gene_symbol != var_name:
-            label += f" | {gene_symbol}"
-
-        #ajout de l'identifiant Ensembl
-        if gene_id and gene_id not in [var_name, gene_symbol]:
-            label += f" | {gene_id}"
+        label = gene_symbol if gene_symbol else var_name
 
         #indique la valeur exacte qui a matché la requête
-        if match_value and match_value not in [var_name, gene_symbol, gene_id]:
+        if match_value and match_value not in [label]:
             label += f" (matched: {match_value})"
         options.append((label, var_name))
 

@@ -313,24 +313,32 @@ def suggest_gene_names(adata, query, n=5):
 
         score = None
 
-        # 1-sous-chaîne stricte
+        cand_len = len(cand_up)
+        q_len = len(q)
+
+        # 1. contient la query
         if q in cand_up:
             score = 100
 
-        # 2-sous-séquence
+        # 2. sous-séquence
         elif _is_subsequence(q, cand_up):
             score = 80
 
-        # 3-similarité globale seulement si déjà assez proche
+        # 3. similarité
         else:
             ratio = difflib.SequenceMatcher(None, q, cand_up).ratio()
-            if ratio >= 0.75:
+            if ratio >= 0.6:
                 score = ratio * 100
+
+        # 4. mots courts proches
+        if score is not None:
+    
+            score += max(0, 20 - abs(cand_len - q_len))
 
         if score is not None:
             scored.append((score, cand))
 
-    scored.sort(key=lambda x: (-x[0], len(x[1]), x[1]))
+    scored.sort(key=lambda x: (-x[0], len(x[1])))
     return [cand for _, cand in scored[:n]]
 
 def search_gene_partial(adata, query, max_hits=50):

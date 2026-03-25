@@ -131,11 +131,14 @@ with tab1:
 
         elif result["status"] == "multiple":
             options = hits_to_options(result["hits"])
-            labels = [x[0] for x in options]
-            label_to_var = {x[0]: x[1] for x in options}
 
-            selected = st.selectbox("Select a gene", labels, key="sg_select")
-            resolved_gene = label_to_var[selected]
+            selected = st.selectbox(
+                "Select a gene",
+                options,
+                format_func=lambda x: x[0]
+            )
+
+            resolved_gene = selected[1] if selected else None
 
         elif result["status"] == "suggestions":
             options = suggestions_to_options(adata, result["suggestions"])
@@ -143,7 +146,7 @@ with tab1:
             label_to_var = {x[0]: x[1] for x in options}
 
             selected = st.selectbox("Suggestions", labels, key="sg_suggest")
-            resolved_gene = label_to_var[selected]
+            resolved_gene = label_to_var.get(selected)
 
         else:
             st.error("No result found.")
@@ -233,11 +236,16 @@ with tab2:
 
             elif result["status"] == "multiple":
                 options = hits_to_options(result["hits"])
-                labels = [x[0] for x in options]
-                label_to_var = {x[0]: x[1] for x in options}
 
-                selected = st.selectbox(f"Select gene {key}", labels, key=f"tab2_select_{key}")
-                resolved_genes.append(label_to_var[selected])
+                selected = st.selectbox(
+                    f"Select gene {key}",
+                    options,
+                    format_func=lambda x: x[0],
+                    key=f"tab2_select_{key}"
+                )
+
+                resolved = selected[1] if selected else None
+                resolved_genes.append(resolved)
 
             elif result["status"] == "suggestions":
                 options = suggestions_to_options(adata, result["suggestions"])
@@ -372,17 +380,19 @@ with tab3:
 
                 elif result["status"] == "suggestions":
                     options = suggestions_to_options(adata, result["suggestions"])
-                    labels = [x[0] for x in options]
-                    label_to_var = {x[0]: x[1] for x in options}
 
                     selected = st.selectbox(
                         f"Suggestions for '{g}'",
-                        labels,
+                        options,
+                        format_func=lambda x: x[0],
                         key=f"tab3_suggest_{i}"
                     )
 
-                    resolved_genes.append(label_to_var[selected])
-                    selection_needed = True
+                    resolved = selected[1] if selected else None
+                    resolved_genes.append(resolved)
+
+                    if resolved is None:
+                        selection_needed = True
 
                 else:
                     invalid_genes.append(g)
@@ -390,7 +400,7 @@ with tab3:
             if invalid_genes:
                 st.warning(f"Ignored (invalid): {', '.join(invalid_genes)}")
 
-            if selection_needed:
+            if any(g is None for g in resolved_genes):
                 st.info("Please validate all gene selections to run the analysis.")
                 st.stop()
 
