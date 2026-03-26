@@ -18,9 +18,13 @@ from backend.gene_names.integration_interface.integration_interface import (
 from backend.gene_names.prepare_names.prepare_names import gene_versions
 from backend.data_loading.load_anndata import load_anndata, summarize_anndata, validate_anndata
 
-import backend.visualization.gene_coexpression as gcb
-import backend.visualization.signature_utils as su
-import backend.visualization.heatmap as hb
+from backend.visualization.gene_coexpression_2_genes import gene_coexpression as gcb
+from backend.visualization.gene_coexpression_multiple_genes.signature_utils import (
+    signature_utils as su
+)
+from backend.visualization.gene_coexpression_multiple_genes.heatmap import (
+    heatmap as hb
+)
 
 # Class to capture matplotlib figures, temporarily overriding plt.show to prevent immediate display of figures, and collecting new figures created during the capture period. This allows control over when figures are displayed in Streamlit, making them available for later display via st.pyplot.
 class _PlotCapture:
@@ -179,7 +183,7 @@ with tab1:
             st.warning("Select at least one plot.")
         else:
             try:
-                geb = importlib.import_module("backend.visualization.gene_expression")
+                geb = importlib.import_module("backend.visualization.gene_expression.gene_expression")
                 geb.st = st
                 geb.plt = plt
                 geb.gene = resolved_gene
