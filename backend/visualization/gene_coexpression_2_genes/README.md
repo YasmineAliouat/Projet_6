@@ -63,7 +63,7 @@ figs = plot_gene_coexpression(
 )
 ```
 
-## Retour de la fonction
+### Retour de la fonction
 
 La fonction retourne :
 
