@@ -56,7 +56,7 @@ st.markdown("Web interface to explore single-cell RNA-seq data stored in **AnnDa
 
 # Sidebar for loading the dataset, with fields to specify the path to the .h5ad file, the expression source to use (adata.X or adata.raw), and a button to start loading. The sidebar also displays information about the currently loaded dataset, if available.
 st.sidebar.header("Dataset")
-data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
+data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583_new.h5ad")
 expr_source = st.sidebar.selectbox("Expression source", ["adata.X", "adata.raw"], index=0)
 load_clicked = st.sidebar.button("Load dataset", type="primary")
 st.sidebar.divider()
