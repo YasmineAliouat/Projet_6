@@ -18,9 +18,13 @@ from backend.gene_names.integration_interface.integration_interface import (
 from backend.gene_names.prepare_names.prepare_names import gene_versions
 from backend.data_loading.load_anndata import load_anndata, summarize_anndata, validate_anndata
 
-import backend.visualization.gene_coexpression as gcb
-import backend.visualization.signature_utils as su
-import backend.visualization.heatmap as hb
+from backend.visualization.gene_coexpression_2_genes import gene_coexpression as gcb
+from backend.visualization.gene_coexpression_multiple_genes.signature_utils import (
+    signature_utils as su
+)
+from backend.visualization.gene_coexpression_multiple_genes.heatmap import (
+    heatmap as hb
+)
 
 # Class to capture matplotlib figures, temporarily overriding plt.show to prevent immediate display of figures, and collecting new figures created during the capture period. This allows control over when figures are displayed in Streamlit, making them available for later display via st.pyplot.
 class _PlotCapture:
@@ -56,7 +60,7 @@ st.markdown("Web interface to explore single-cell RNA-seq data stored in **AnnDa
 
 # Sidebar for loading the dataset, with fields to specify the path to the .h5ad file, the expression source to use (adata.X or adata.raw), and a button to start loading. The sidebar also displays information about the currently loaded dataset, if available.
 st.sidebar.header("Dataset")
-data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583.h5ad")
+data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583_new.h5ad")
 expr_source = st.sidebar.selectbox("Expression source", ["adata.X", "adata.raw"], index=0)
 load_clicked = st.sidebar.button("Load dataset", type="primary")
 st.sidebar.divider()
