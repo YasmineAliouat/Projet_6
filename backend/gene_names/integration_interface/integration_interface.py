@@ -212,12 +212,8 @@ def suggestions_to_options(adata, suggestions, use_biomart=False, organism="hsap
 
             #Construction du label si recherche exacte
             label = f"{var_name}"
-            if gene_symbol and gene_symbol != var_name:
-                label += f" | {gene_symbol}"
-            if gene_id:
-                label += f" | {gene_id}"
-
-            label += f"  (matched: {sugg})"
+            label = gene_symbol if gene_symbol else var_name
+            label += f" (matched: {sugg})"
             options.append((label, var_name))
 
         #Si recherche partiel et plusieurs résultats sont trouvé
@@ -229,12 +225,8 @@ def suggestions_to_options(adata, suggestions, use_biomart=False, organism="hsap
 
                 #Construction du label si résutats multiples
                 label = f"{var_name}"
-                if gene_symbol and gene_symbol != var_name:
-                    label += f" | {gene_symbol}"
-                if gene_id:
-                    label += f" | {gene_id}"
-
-                label += f"  (matched: {sugg})"
+                label = gene_symbol if gene_symbol else var_name
+                label += f" (matched: {sugg})"
                 options.append((label, var_name))
 
     # enlever les doublons sur var_name
