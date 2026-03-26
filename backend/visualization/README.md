@@ -109,7 +109,7 @@ visualization/
 │
 ├── gene_expression/
 ├── gene_coexpression_2_genes/
-├── gene_coexpression_multiple_genes/
+└──  gene_coexpression_multiple_genes/
         └── gene_signature/
         └── heatmap/
 ```
