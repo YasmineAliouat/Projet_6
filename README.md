@@ -7,7 +7,7 @@ Il s’inscrit dans un contexte de recherche en biologie des systèmes appliqué
 
 
 ## Objectifs
-L'applocation permet de :
+L'application permet de :
 - Visualiser les clusters mis en évidence par les manip
 - Visualiser l’expression d’un gène
 - Observer la distribution d’expression
@@ -34,12 +34,17 @@ L'applocation permet de :
 - Visualisation globale de l'activité de la signature
 - Heatmap de co-expression des gènes de la signature
 - Sélection et validation des gènes composant la signature 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 
 ### Gestions des noms de gènes :
+- Enrechissement du Anndata (Biomart)
 - Insensible à la casse
 - Tolérance aux fautes de frappe
 - Suggestions automatiques
-- Normalisation des noms (Biomart)
+
 
 ## Structure du projet
 projet/   
@@ -137,8 +142,10 @@ docker run -p 8501:8501  -v /chemin/vers/donnees:/app/data  projet6-app
 data/file_name.h5ad
 ```
 
-## Equipe
+## Contexte académique :
+Projet réalisé dans le cadre du Master Bioinformatique (Université Lyon 1).
 
+### Equipe
 - **Etudiants** :
   - ALIOUAT Yasmine - yasmine.aliouat@etu.univ-lyon1.fr
   - CAUCHOIS Fanny - fanny.cauchois@etu.univ-lyon1.fr
