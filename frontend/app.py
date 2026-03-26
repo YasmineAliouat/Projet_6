@@ -183,7 +183,7 @@ with tab1:
             st.warning("Select at least one plot.")
         else:
             try:
-                geb = importlib.import_module("backend.visualization.gene_expression")
+                geb = importlib.import_module("backend.visualization.gene_expression.gene_expression")
                 geb.st = st
                 geb.plt = plt
                 geb.gene = resolved_gene
