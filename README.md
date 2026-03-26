@@ -34,10 +34,6 @@ L'application permet de :
 - Visualisation globale de l'activité de la signature
 - Heatmap de co-expression des gènes de la signature
 - Sélection et validation des gènes composant la signature 
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 
 ### Gestions des noms de gènes :
 - Enrechissement du Anndata (Biomart)
