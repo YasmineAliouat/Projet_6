@@ -29,7 +29,11 @@ L'applocation permet de :
 - Heatmap 
 
 ### Signature de gènes :
-- 
+- Score de signature (moyenne d'expression des gènes)
+- Projection du score dans l'espace UMAP
+- Visualisation globale de l'activité de la signature
+- Heatmap de co-expression des gènes de la signature
+- Sélection et validation des gènes composant la signature 
 
 ### Gestions des noms de gènes :
 - Insensible à la casse
