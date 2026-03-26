@@ -84,6 +84,8 @@ streamlit run frontend/app.py
 ## Données
 L’application nécessite un fichier AnnData (`.h5ad`).  
 Deux options sont possibles pour l'emplacement du fichier :  
+
+
 **En local**  
 Entrer un chemin dans l’interface :
 ```
