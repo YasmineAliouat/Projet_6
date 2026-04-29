@@ -174,15 +174,11 @@ def hits_to_options(hits):
         if var_name == "":
             continue
 
-        #construction du label affiché dans Streamlit
-        label = var_name
-
-        #ajout du symbole du gène
-        label = gene_symbol if gene_symbol else var_name
-
-        #indique la valeur exacte qui a matché la requête
-        if match_value and match_value not in [label]:
-            label += f" (matched: {match_value})"
+        # On affiche le nom qui a matché (alias, gene_symbol, ...) si différent du var_name
+        if match_value and match_value != var_name:
+            label = match_value
+        else:
+            label = var_name
         options.append((label, var_name))
 
     return options
@@ -199,35 +195,18 @@ def suggestions_to_options(adata, suggestions, use_biomart=False, organism="hsap
         if result["status"] == "exact" and result["var_name"] is not None:
             var_name = result["var_name"]
             hits = result["hits"]
-
-            gene_symbol = ""
-            gene_id = ""
-
-            if hits is not None and not hits.empty:
-                row = hits.iloc[0]
-                if "gene_symbol" in hits.columns and row["gene_symbol"] == row["gene_symbol"]:
-                    gene_symbol = row["gene_symbol"]
-                if "gene_ids" in hits.columns and row["gene_ids"] == row["gene_ids"]:
-                    gene_id = row["gene_ids"]
-
-            #Construction du label si recherche exacte
-            label = f"{var_name}"
-            label = gene_symbol if gene_symbol else var_name
-            label += f" (matched: {sugg})"
+            # Afficher le nom matché (alias, symbol...) si différent du var_name
+            label = var_name
+            if hits is not None and not hits.empty and "__match_value__" in hits.columns:
+                mv = str(hits.iloc[0]["__match_value__"] or "").strip()
+                if mv and mv != var_name:
+                    label = mv
             options.append((label, var_name))
 
         #Si recherche partiel et plusieurs résultats sont trouvé
         elif result["status"] == "multiple" and result["hits"] is not None:
-            for _, row in result["hits"].iterrows():
-                var_name = row["__var_name__"]
-                gene_symbol = row["gene_symbol"] if "gene_symbol" in row and row["gene_symbol"] == row["gene_symbol"] else ""
-                gene_id = row["gene_ids"] if "gene_ids" in row and row["gene_ids"] == row["gene_ids"] else ""
-
-                #Construction du label si résutats multiples
-                label = f"{var_name}"
-                label = gene_symbol if gene_symbol else var_name
-                label += f" (matched: {sugg})"
-                options.append((label, var_name))
+            for opt in hits_to_options(result["hits"]):
+                options.append(opt)
 
     # enlever les doublons sur var_name
     unique_options = []

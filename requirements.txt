@@ -5,6 +5,5 @@ pandas
 numpy
 scipy
 matplotlib
-seaborn
 plotly
 kaleido

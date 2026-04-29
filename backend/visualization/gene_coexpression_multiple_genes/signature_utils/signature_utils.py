@@ -54,7 +54,7 @@ def plot_signature_score(adata, gene_list, score_name="signature_score"):
 
     compute_signature_score(adata, gene_list, score_name)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(4, 3))
 
     sc.pl.umap(
         adata,

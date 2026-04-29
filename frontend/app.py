@@ -1,3 +1,4 @@
+import copy
 import importlib
 import matplotlib.pyplot as plt
 from typing import Optional
@@ -126,12 +127,19 @@ with tab1:
     gene_query = st.text_input("Gene name", placeholder="e.g. MYCN", key="gene_single")
 
     resolved_gene = None
+    display_name = None
 
-    if adata is not None and gene_query.strip():
+    if adata is not None and len(gene_query.strip()) >= 2:
         result = resolve_gene_for_streamlit(adata, gene_query)
 
         if result["status"] == "exact":
             resolved_gene = result["var_name"]
+            hits = result.get("hits")
+            if hits is not None and not hits.empty:
+                mv = str(hits.iloc[0]["__match_value__"] if "__match_value__" in hits.columns else "").strip()
+                display_name = mv if mv else resolved_gene
+            else:
+                display_name = resolved_gene
 
         elif result["status"] == "multiple":
             options = hits_to_options(result["hits"])
@@ -143,14 +151,20 @@ with tab1:
             )
 
             resolved_gene = selected[1] if selected else None
+            display_name = selected[0] if selected else None
 
         elif result["status"] == "suggestions":
             options = suggestions_to_options(adata, result["suggestions"])
-            labels = [x[0] for x in options]
-            label_to_var = {x[0]: x[1] for x in options}
 
-            selected = st.selectbox("Suggestions", labels, key="sg_suggest")
-            resolved_gene = label_to_var.get(selected)
+            selected = st.selectbox(
+                "Suggestions",
+                options,
+                format_func=lambda x: x[0],
+                key="sg_suggest"
+            )
+
+            resolved_gene = selected[1] if selected else None
+            display_name = selected[0] if selected else None
 
         else:
             st.error("No result found.")
@@ -188,7 +202,7 @@ with tab1:
                 geb.plt = plt
                 geb.gene = resolved_gene
 
-                figs = geb.plot_gene_expression(adata, resolved_gene, plot_types=plot_types)
+                figs = geb.plot_gene_expression(adata, resolved_gene, plot_types=plot_types, display_name=display_name)
 
                 if figs:
                     zip_buffer = io.BytesIO()
@@ -226,17 +240,25 @@ with tab2:
     genes_list = [gene_a, gene_b]
 
     resolved_genes = []
+    display_names = []
 
     if adata:
         for gene, key in [(gene_a, "A"), (gene_b, "B")]:
-            if not gene.strip():
+            if len(gene.strip()) < 2:
                 resolved_genes.append(None)
+                display_names.append(None)
                 continue
 
             result = resolve_gene_for_streamlit(adata, gene)
 
             if result["status"] == "exact":
                 resolved_genes.append(result["var_name"])
+                hits = result.get("hits")
+                if hits is not None and not hits.empty:
+                    mv = str(hits.iloc[0]["__match_value__"] if "__match_value__" in hits.columns else "").strip()
+                    display_names.append(mv if mv else result["var_name"])
+                else:
+                    display_names.append(result["var_name"])
 
             elif result["status"] == "multiple":
                 options = hits_to_options(result["hits"])
@@ -250,6 +272,7 @@ with tab2:
 
                 resolved = selected[1] if selected else None
                 resolved_genes.append(resolved)
+                display_names.append(selected[0] if selected else None)
 
             elif result["status"] == "suggestions":
                 options = suggestions_to_options(adata, result["suggestions"])
@@ -258,10 +281,12 @@ with tab2:
 
                 selected = st.selectbox(f"Suggestions gene {key}", labels, key=f"tab2_suggest_{key}")
                 resolved_genes.append(label_to_var[selected])
+                display_names.append(selected)
 
             else:
                 st.error(f"No result for gene {key}")
                 resolved_genes.append(None)
+                display_names.append(None)
 
     st.markdown("**Plots to display:**")
     p1, p2 = st.columns(2)
@@ -293,7 +318,8 @@ with tab2:
                 figs = gcb.plot_gene_coexpression(
                     adata,
                     genes=resolved_genes,
-                    plot_types=plot_types
+                    plot_types=plot_types,
+                    display_names=display_names
                 )
 
                 if figs:
@@ -305,7 +331,23 @@ with tab2:
                             img = io.BytesIO()
 
                             if hasattr(fig, "write_image"):
-                                fig.write_image(img, format="png")
+                                fig_dl = copy.deepcopy(fig)
+                                fig_dl.update_layout(
+                                    template="plotly_white",
+                                    paper_bgcolor="white",
+                                    plot_bgcolor="white",
+                                    width=1400,
+                                    height=900,
+                                    legend=dict(
+                                        orientation="v",
+                                        x=1.02,
+                                        xanchor="left",
+                                        y=1,
+                                        yanchor="top",
+                                    ),
+                                    margin=dict(r=220),
+                                )
+                                fig_dl.write_image(img, format="png", scale=2)
                             else:
                                 fig.savefig(img, format="png", bbox_inches="tight")
 
@@ -359,6 +401,7 @@ with tab3:
             raw_genes = [g.strip() for g in sig_text.split("\n") if g.strip()]
 
             resolved_genes = []
+            display_names = []
             invalid_genes = []
             selection_needed = False
 
@@ -367,6 +410,12 @@ with tab3:
 
                 if result["status"] == "exact":
                     resolved_genes.append(result["var_name"])
+                    hits = result.get("hits")
+                    if hits is not None and not hits.empty:
+                        mv = str(hits.iloc[0]["__match_value__"] if "__match_value__" in hits.columns else "").strip()
+                        display_names.append(mv if mv else result["var_name"])
+                    else:
+                        display_names.append(result["var_name"])
 
                 elif result["status"] == "multiple":
                     options = hits_to_options(result["hits"])
@@ -380,6 +429,7 @@ with tab3:
                     )
 
                     resolved_genes.append(label_to_var[selected])
+                    display_names.append(selected)
                     selection_needed = True
 
                 elif result["status"] == "suggestions":
@@ -394,6 +444,7 @@ with tab3:
 
                     resolved = selected[1] if selected else None
                     resolved_genes.append(resolved)
+                    display_names.append(selected[0] if selected else None)
 
                     if resolved is None:
                         selection_needed = True
@@ -414,7 +465,12 @@ with tab3:
                 st.warning("Select at least one plot.")
             else:
                 try:
-                    resolved_genes = [g for g in resolved_genes if g in adata.var_names]
+                    valid_pairs = [
+                        (g, d) for g, d in zip(resolved_genes, display_names)
+                        if g is not None and g in adata.var_names
+                    ]
+                    resolved_genes = [g for g, d in valid_pairs]
+                    display_names = [d for g, d in valid_pairs]
 
                     if len(resolved_genes) == 0:
                         st.error("None of the input genes are present in the dataset.")
@@ -431,18 +487,28 @@ with tab3:
 
                             figs = cap_sig.figures()
                             for fig in figs:
-                                st.pyplot(fig)
+                                buf = io.BytesIO()
+                                fig.savefig(buf, format="png", bbox_inches="tight", dpi=120)
+                                buf.seek(0)
+                                _, col, _ = st.columns([1, 3, 1])
+                                with col:
+                                    st.image(buf, use_container_width=True)
                             all_figs.extend(figs)
 
                         if show_heatmap:
                             st.subheader("Co-expression heatmap")
 
                             with _PlotCapture() as cap_heat:
-                                hb.coexp_heatmap(adata, resolved_genes)
+                                hb.coexp_heatmap(adata, resolved_genes, display_names=display_names)
 
                             figs = cap_heat.figures()
                             for fig in figs:
-                                st.pyplot(fig)
+                                buf = io.BytesIO()
+                                fig.savefig(buf, format="png", bbox_inches="tight", dpi=120)
+                                buf.seek(0)
+                                _, col, _ = st.columns([1, 3, 1])
+                                with col:
+                                    st.image(buf, use_container_width=True)
                             all_figs.extend(figs)
 
                         if all_figs:

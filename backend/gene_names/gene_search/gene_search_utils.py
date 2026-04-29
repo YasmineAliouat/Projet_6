@@ -161,17 +161,18 @@ def search_gene_hits(adata, query, search_cols=None, max_hits=50):
     - alias_symbol (token exact)
     """
     adata = ensure_versions_cols(adata)
-    var = adata.var.copy()
-    var["__var_name__"] = var.index.astype(str)
 
     q = str(query).strip()
     if q == "":
-        return var.iloc[0:0]
+        return pd.DataFrame()
 
     if search_cols is None:
         search_cols = DEFAULT_SEARCH_COLS
 
-    cols_present = [c for c in search_cols if c in var.columns]
+    # Copie minimale , seulement les colonnes utiles, pas tout adata.var
+    cols_present = [c for c in search_cols if c in adata.var.columns]
+    var = adata.var[cols_present].copy()
+    var.insert(0, "__var_name__", adata.var.index.astype(str))
     view_cols = ["__var_name__"] + cols_present
 
     # ENSG exact
@@ -217,7 +218,7 @@ def search_gene_hits(adata, query, search_cols=None, max_hits=50):
             return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
 
     # alias exact
-    if "alias_symbol" in var.columns:
+    if "alias_symbol" in var.columns and len(q) >= 3:
         mask = _match_alias_token(var["alias_symbol"], q)
         hits = var[mask]
         if not hits.empty:
@@ -225,7 +226,7 @@ def search_gene_hits(adata, query, search_cols=None, max_hits=50):
             return hits[view_cols + ["__match_field__", "__match_value__"]].sort_index().head(max_hits)
 
     # uniprot trembl exact (token)
-    if "uniprot_sptrembl" in var.columns:
+    if "uniprot_sptrembl" in var.columns and len(q) >= 3:
         mask = _match_alias_token(var["uniprot_sptrembl"], q)
         hits = var[mask]
         if not hits.empty:
@@ -285,7 +286,7 @@ def suggest_gene_names(adata, query, n=5):
     La recherche de suggestions se fait sur les noms principaux les plus utiles.
     """
     adata = ensure_versions_cols(adata)
-    var = adata.var.copy()
+    var = adata.var  # lecture seule, pas de copie
 
     candidates = []
     for c in ["gene_symbol", "hgnc_symbol", "base_name", "NCBI_symbol"]:
@@ -302,39 +303,57 @@ def suggest_gene_names(adata, query, n=5):
     candidates = sorted(set(candidates))
 
     q = str(query).strip().upper()
-    if q == "":
+    if len(q) < 3:
         return []
 
+    # Pré-filtrage : on collecte les candidats par trois critères distincts.
+    # le filtre 2 ne tourne que si le 1 est vide.
+    # Le filtre 3 (fautes de frappe / substitution) tourne toujours et s'ajoute aux résultats
+    pre_set = set()
+    substring_hits = [c for c in candidates if q in str(c).upper()]
+    if substring_hits:
+        pre_set.update(substring_hits)
+    else:
+        pre_set.update(c for c in candidates if _is_subsequence(q, str(c).upper()))
+
+    # Toujours ajouter les candidats de même longueur ±1 avec ratio suffisant
+    pre_set.update(
+        c for c in candidates
+        if abs(len(str(c)) - len(q)) <= 1
+        and difflib.SequenceMatcher(None, q, str(c).upper()).ratio() >= 0.6
+    )
+    pre_filtered = list(pre_set)
+
     scored = []
-    for cand in candidates:
+    for cand in pre_filtered:
         cand_up = str(cand).strip().upper()
         if cand_up == "":
             continue
 
         score = None
-
         cand_len = len(cand_up)
         q_len = len(q)
 
         # 1. similarité globale
         ratio = difflib.SequenceMatcher(None, q, cand_up).ratio()
-
         if ratio >= 0.5:
             score = ratio * 100
 
-        # 2. bonus si contient
-        if q in cand_up:
+        # 2. bonus préfixe
+        if cand_up.startswith(q):
+            score = (score or 0) + 50
+
+        # 3. bonus si contient
+        elif q in cand_up:
             score = (score or 0) + 20
 
-        # 3. bonus si sous-séquence
+        # 4. bonus si sous-séquence
         elif _is_subsequence(q, cand_up):
             score = (score or 0) + 10
 
-        # 4. proximité de taille
+        # 5. proximité de taille
         if score is not None:
-            score += max(0, 30 - abs(cand_len - q_len) * 5)
-
-            # bonus pour symbole
+            score += max(0, 50 - abs(cand_len - q_len) * 10)
             if cand_up.isalpha() and cand_len <= 6:
                 score += 20
 
@@ -350,18 +369,20 @@ def search_gene_partial(adata, query, max_hits=50):
     Par exemple : Taper 'TTL' peut retrouver 'TTLL10'.
     """
     adata = ensure_versions_cols(adata)
-    var = adata.var.copy()
-    var["__var_name__"] = var.index.astype(str)
 
     q = str(query).strip()
-    if q == "":
-        return var.iloc[0:0]
+    if len(q) < 2:
+        return pd.DataFrame()
 
-    cols_present = [c for c in DEFAULT_SEARCH_COLS if c in var.columns]
+    # Copie minimale : seulement les colonnes utiles
+    cols_present = [c for c in DEFAULT_SEARCH_COLS if c in adata.var.columns]
+    var = adata.var[cols_present].copy()
+    var.insert(0, "__var_name__", adata.var.index.astype(str))
     view_cols = ["__var_name__"] + cols_present
 
     masks = []
-    for c in ["gene_symbol", "hgnc_symbol", "hgnc_id","base_name", "gene_ids", "uniprot_swissprot", "uniprot_sptrembl","refseq_mrna", "NCBI_symbol"]:
+    for c in ["gene_symbol", "hgnc_symbol", "hgnc_id", "base_name", "gene_ids",
+              "uniprot_swissprot", "uniprot_sptrembl", "refseq_mrna", "NCBI_symbol"]:
         if c in var.columns:
             masks.append(_as_str(var[c]).str.contains(q, case=False, regex=False))
 
@@ -369,32 +390,91 @@ def search_gene_partial(adata, query, max_hits=50):
         masks.append(_as_str(var["alias_symbol"]).str.contains(q, case=False, regex=False))
 
     if not masks:
-        return var.iloc[0:0]
+        return pd.DataFrame()
 
     mask_any = masks[0]
     for m in masks[1:]:
         mask_any = mask_any | m
 
-    hits = var[mask_any]
-    hits = hits.copy()
+    hits = var[mask_any].copy()
 
-    match_info = hits.apply(lambda row: _best_partial_value(row, q), axis=1)
-    hits["__match_field__"] = match_info.apply(lambda x: x[0])
-    hits["__match_value__"] = match_info.apply(lambda x: x[1])
+    # correspondances floues pour les typos.
+    # On limite aux noms de longueur len(q)+1 ou +2 pour rester précis et rapide.
+    if len(q) >= 3:
+        q_up_check = q.upper()
+        for c in ["gene_symbol", "hgnc_symbol", "base_name"]:
+            if c not in var.columns:
+                continue
+            col_str = _as_str(var[c])
+            len_mask = col_str.str.len().between(len(q_up_check) + 1, len(q_up_check) + 2)
+            if not len_mask.any():
+                continue
+            subset_vals = col_str[len_mask]
+            subseq_mask = subset_vals.apply(lambda x: _is_subsequence(q_up_check, x.upper()))
+            new_idx = subseq_mask[subseq_mask].index.difference(hits.index)
+            if len(new_idx) > 0:
+                hits = pd.concat([hits, var.loc[new_idx]])
 
-    # score de pertinence
-    hits["__score__"] = hits["__match_value__"].apply(
-        lambda x: difflib.SequenceMatcher(None, q.upper(), str(x).upper()).ratio()
+    # Assignation vectorisée du champ et de la valeur qui ont matché (par priorité de colonne).
+    priority_cols = [
+        "gene_symbol", "hgnc_symbol", "hgnc_id", "base_name", "gene_ids",
+        "uniprot_swissprot", "uniprot_sptrembl", "refseq_mrna", "NCBI_symbol", "alias_symbol",
+    ]
+    match_field_s = pd.Series([None] * len(hits), index=hits.index, dtype=object)
+    match_value_s = pd.Series([""]  * len(hits), index=hits.index, dtype=object)
+
+    for c in priority_cols:
+        if c not in hits.columns:
+            continue
+        still_unset = match_field_s.isna()
+        if not still_unset.any():
+            break
+        col_str = _as_str(hits.loc[still_unset, c])
+        matched = col_str.str.contains(q, case=False, regex=False)
+        idx = matched[matched].index
+        match_field_s.loc[idx] = c
+        # extraire le token qui matche
+        if c in ("alias_symbol", "uniprot_sptrembl", "refseq_mrna"):
+            match_value_s.loc[idx] = col_str.loc[idx].apply(
+                lambda x: _first_matching_token(x, q) or str(x)
+            )
+        else:
+            match_value_s.loc[idx] = col_str.loc[idx]
+
+    # Pour les lignes floues (pas de sous-chaîne exacte trouvée), utiliser le symbole principal
+    for c in ["gene_symbol", "hgnc_symbol", "base_name"]:
+        if c not in hits.columns:
+            continue
+        remaining = match_field_s.isna()
+        if not remaining.any():
+            break
+        col_vals = _as_str(hits.loc[remaining, c])
+        has_value = col_vals != ""
+        idx = has_value[has_value].index
+        match_field_s.loc[idx] = c
+        match_value_s.loc[idx] = col_vals.loc[idx]
+
+    hits["__match_field__"] = match_field_s
+    hits["__match_value__"] = match_value_s
+
+    # Score vectorisé : préfixe > contient > longueur proche
+    mv_up = hits["__match_value__"].str.upper().fillna("")
+    q_up = q.upper()
+
+    hits["__score__"] = (
+        mv_up.str.startswith(q_up).astype(float) * 5.0
+        + (mv_up == q_up).astype(float) * 3.0
+        + (2 - mv_up.str.len().sub(len(q_up)).abs()).clip(lower=0)
     )
 
-    # scort mots courts
-    hits["__score__"] += hits["__match_value__"].apply(
-        lambda x: max(0, 2 - abs(len(str(x)) - len(q)))
-    )
+    # Bonus de similarité pour les typos
+    fuzzy_mask = ~mv_up.str.contains(q_up, regex=False) & (mv_up != "")
+    if fuzzy_mask.any():
+        hits.loc[fuzzy_mask, "__score__"] += hits.loc[fuzzy_mask, "__match_value__"].apply(
+            lambda x: difflib.SequenceMatcher(None, q_up, str(x).upper()).ratio() * 4.0
+        )
 
-    # tri final
     hits = hits.sort_values("__score__", ascending=False)
-
     return hits[view_cols + ["__match_field__", "__match_value__"]].head(max_hits)
 
 
