@@ -48,7 +48,7 @@ def load_anndata(h5ad_path: str) -> AnnData:
         adata = sc.read_h5ad(h5ad_path)
     except Exception as e:
         raise RuntimeError(
-            f"Impossible de lire le fichier .h5ad : {h5ad_path}\nDétail : {e}"
+            f"Cannot read the .h5ad file: {h5ad_path}\nDetail: {e}"
         ) from e
 
     return adata
@@ -58,22 +58,22 @@ def validate_anndata(adata: AnnData, *, require_var_names: bool = True) -> None:
     Vérifications.
     """
     if adata is None:
-        raise ValueError("AnnData est None.")
+        raise ValueError("AnnData is None.")
 
     if adata.X is None:
-        raise ValueError("AnnData.X est absent (aucune matrice d'expression disponible).")
+        raise ValueError("AnnData.X is missing (no expression matrix available).")
 
     if adata.n_obs <= 0 or adata.n_vars <= 0:
-        raise ValueError(f"Dimensions invalides: n_obs={adata.n_obs}, n_vars={adata.n_vars}")
+        raise ValueError(f"Invalid dimensions: n_obs={adata.n_obs}, n_vars={adata.n_vars}")
 
     if require_var_names:
         if adata.var_names is None or len(adata.var_names) == 0:
-            raise ValueError("adata.var_names est vide.")
+            raise ValueError("adata.var_names is empty.")
         if not adata.var_names.is_unique:
-            raise ValueError("adata.var_names contient des doublons (doit être unique).")
+            raise ValueError("adata.var_names contains duplicates (must be unique).")
 
     if adata.obs_names is not None and not adata.obs_names.is_unique:
-        raise ValueError("adata.obs_names contient des doublons (doit être unique).")
+        raise ValueError("adata.obs_names contains duplicates (must be unique).")
 
 
 def summarize_anndata(adata: AnnData, *, preview_n: int = 15,) -> AnnDataSummary:

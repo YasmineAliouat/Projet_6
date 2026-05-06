@@ -43,6 +43,9 @@ class _PlotCapture:
         new_nums = sorted(list(self._after - self._before))
         return [plt.figure(n) for n in new_nums]
 
+def _safe_name(s):
+    return "".join(c if c.isalnum() or c in "-_." else "_" for c in str(s))
+
 #This function loads an AnnData file from the specified path, validates its structure, and generates a summary of its characteristics. By using the @st.cache_resource decorator, the results of this function are cached by Streamlit, which avoids reloading and processing the same file multiple times, thus improving performance during interactive data exploration.
 @st.cache_resource
 def cached_load_from_path(path: str):
@@ -61,7 +64,7 @@ st.markdown("Web interface to explore single-cell RNA-seq data stored in **AnnDa
 
 # Sidebar for loading the dataset, with fields to specify the path to the .h5ad file, the expression source to use (adata.X or adata.raw), and a button to start loading. The sidebar also displays information about the currently loaded dataset, if available.
 st.sidebar.header("Dataset")
-data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3583_new.h5ad")
+data_path = st.sidebar.text_input("Path to .h5ad file", value="data/adata_3716.h5ad")
 expr_source = st.sidebar.selectbox("Expression source", ["adata.X", "adata.raw"], index=0)
 load_clicked = st.sidebar.button("Load dataset", type="primary")
 st.sidebar.divider()
@@ -205,21 +208,22 @@ with tab1:
                 figs = geb.plot_gene_expression(adata, resolved_gene, plot_types=plot_types, display_name=display_name)
 
                 if figs:
+                    gene_label = _safe_name(display_name or resolved_gene)
                     zip_buffer = io.BytesIO()
 
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
-                        for i, fig in enumerate(figs):
+                        for fig, pt in zip(figs, plot_types):
                             img = io.BytesIO()
                             fig.savefig(img, format="png", bbox_inches="tight")
                             img.seek(0)
-                            zf.writestr(f"plot_{i+1}.png", img.read())
+                            zf.writestr(f"{gene_label}_{pt}.png", img.read())
 
                     zip_buffer.seek(0)
 
                     st.download_button(
                         "Download all plots",
                         zip_buffer,
-                        file_name="plots.zip",
+                        file_name=f"{gene_label}_plots.zip",
                         mime="application/zip"
                     )
 
@@ -323,10 +327,12 @@ with tab2:
                 )
 
                 if figs:
+                    label_a = _safe_name(display_names[0] or resolved_genes[0])
+                    label_b = _safe_name(display_names[1] or resolved_genes[1])
                     zip_buffer = io.BytesIO()
 
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
-                        for i, fig in enumerate(figs):
+                        for fig, pt in zip(figs, plot_types):
 
                             img = io.BytesIO()
 
@@ -352,14 +358,14 @@ with tab2:
                                 fig.savefig(img, format="png", bbox_inches="tight")
 
                             img.seek(0)
-                            zf.writestr(f"plot_{i+1}.png", img.read())
+                            zf.writestr(f"{label_a}_{label_b}_{pt}.png", img.read())
 
                     zip_buffer.seek(0)
 
                     st.download_button(
                         "Download all plots",
                         zip_buffer,
-                        file_name="coexpression_plots.zip",
+                        file_name=f"{label_a}_{label_b}_coexpression.zip",
                         mime="application/zip"
                     )
 
@@ -478,6 +484,7 @@ with tab3:
                         st.write(f"{len(resolved_genes)} valid genes used")
 
                         all_figs = []
+                        fig_names = []
 
                         if show_umap:
                             st.subheader("UMAP signature score")
@@ -486,14 +493,16 @@ with tab3:
                                 su.plot_signature_score(adata, resolved_genes)
 
                             figs = cap_sig.figures()
-                            for fig in figs:
+                            for i, fig in enumerate(figs):
                                 buf = io.BytesIO()
                                 fig.savefig(buf, format="png", bbox_inches="tight", dpi=120)
                                 buf.seek(0)
                                 _, col, _ = st.columns([1, 3, 1])
                                 with col:
                                     st.image(buf, use_container_width=True)
-                            all_figs.extend(figs)
+                                all_figs.append(fig)
+                                suffix = f"_{i+1}" if len(figs) > 1 else ""
+                                fig_names.append(f"signature_umap{suffix}.png")
 
                         if show_heatmap:
                             st.subheader("Co-expression heatmap")
@@ -502,31 +511,33 @@ with tab3:
                                 hb.coexp_heatmap(adata, resolved_genes, display_names=display_names)
 
                             figs = cap_heat.figures()
-                            for fig in figs:
+                            for i, fig in enumerate(figs):
                                 buf = io.BytesIO()
                                 fig.savefig(buf, format="png", bbox_inches="tight", dpi=120)
                                 buf.seek(0)
                                 _, col, _ = st.columns([1, 3, 1])
                                 with col:
                                     st.image(buf, use_container_width=True)
-                            all_figs.extend(figs)
+                                all_figs.append(fig)
+                                suffix = f"_{i+1}" if len(figs) > 1 else ""
+                                fig_names.append(f"signature_heatmap{suffix}.png")
 
                         if all_figs:
                             zip_buffer = io.BytesIO()
 
                             with zipfile.ZipFile(zip_buffer, "w") as zf:
-                                for i, fig in enumerate(all_figs):
+                                for fig, name in zip(all_figs, fig_names):
                                     img = io.BytesIO()
                                     fig.savefig(img, format="png", bbox_inches="tight")
                                     img.seek(0)
-                                    zf.writestr(f"tab3_plot_{i+1}.png", img.read())
+                                    zf.writestr(name, img.read())
 
                             zip_buffer.seek(0)
 
                             st.download_button(
                                 "Download all plots",
                                 zip_buffer,
-                                file_name="tab3_plots.zip",
+                                file_name="signature_plots.zip",
                                 mime="application/zip"
                             )
 

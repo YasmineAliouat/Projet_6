@@ -35,7 +35,7 @@ def compute_signature_score(adata, gene_list, score_name):
 
     if len(genes_present) == 0:
         raise ValueError(
-            f"Aucun gène de la signature '{score_name}' n'est présent dans les données"
+            f"No gene from signature '{score_name}' is present in the data"
         )
 
     # Calcul du score de signature avec Scanpy

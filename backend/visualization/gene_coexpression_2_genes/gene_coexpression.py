@@ -45,7 +45,7 @@ def plot_gene_coexpression(
         try:
             if plot_type == "scatter":
 
-                st.subheader(f"Scatter plot de {display_a} vs {display_b}")
+                st.subheader(f"Scatter plot of {display_a} vs {display_b}")
 
                 expr_a = adata[:, gene_a].X
                 expr_b = adata[:, gene_b].X
@@ -63,14 +63,14 @@ def plot_gene_coexpression(
                 df = pd.DataFrame({
                     display_a: expr_a,
                     display_b: expr_b,
-                    "Type cellulaire": cell_types
+                    "Cell type": cell_types
                 })
 
                 fig = px.scatter(
                     df,
                     x=display_a,
                     y=display_b,
-                    color="Type cellulaire",
+                    color="Cell type",
                     marginal_x="histogram",
                     marginal_y="histogram",
                     opacity=0.85,
@@ -107,8 +107,8 @@ def plot_gene_coexpression(
                 )
 
                 corr_text = ""
-                for cell_type in df["Type cellulaire"].unique():
-                    cluster_data = df[df["Type cellulaire"] == cell_type]
+                for cell_type in df["Cell type"].unique():
+                    cluster_data = df[df["Cell type"] == cell_type]
                     if len(cluster_data) > 2:
                         r, _ = pearsonr(cluster_data[display_a], cluster_data[display_b])
                         corr_text += f"{cell_type}: R = {r:.2f}<br>"
@@ -130,7 +130,7 @@ def plot_gene_coexpression(
 
             elif plot_type == "umap":
 
-                st.subheader(f"UMAP co-expression de {display_a} vs {display_b}")
+                st.subheader(f"UMAP co-expression of {display_a} vs {display_b}")
 
                 expr_a = adata[:, gene_a].X
                 expr_b = adata[:, gene_b].X
@@ -172,7 +172,6 @@ def plot_gene_coexpression(
                     ax=ax
                 )
 
-                # Remplacer le titre et la légende (obs_key) par les noms affichés
                 ax.set_title(f"coexpression of {display_a} and {display_b}")
                 legend = ax.get_legend()
                 if legend is not None:
@@ -182,6 +181,6 @@ def plot_gene_coexpression(
                 figs.append(fig)
 
         except Exception as e:
-            st.error(f"Erreur lors de {plot_type} : {str(e)}")
+            st.error(f"Error during {plot_type}: {str(e)}")
 
     return figs

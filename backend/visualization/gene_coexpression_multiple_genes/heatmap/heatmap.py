@@ -74,6 +74,6 @@ def coexp_heatmap(adata, gene_list: List[str], display_names: Optional[List[str]
                 )
 
     except Exception as e:
-        raise RuntimeError(f"Erreur lors de la génération de la heatmap: {str(e)}")
+        raise RuntimeError(f"Error generating heatmap: {str(e)}")
 
     return axes_dict

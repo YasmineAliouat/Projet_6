@@ -39,7 +39,7 @@ def plot_gene_expression(
     for plot_type in plot_types:
         try:
             if plot_type == "umap_clusters":
-                st.subheader("UMAP par type cellulaire")
+                st.subheader("UMAP by cell type")
                 fig, ax = plt.subplots(figsize=(4, 3))
                 sc.pl.umap(
                     adata,
@@ -54,7 +54,7 @@ def plot_gene_expression(
                 figs.append(fig)
 
             elif plot_type == "violin":
-                st.subheader(f"Violin plot de {display}")
+                st.subheader(f"Violin plot of {display}")
                 fig, ax = plt.subplots(figsize=(6, 3))
                 sc.pl.violin(
                     adata,
@@ -65,13 +65,13 @@ def plot_gene_expression(
                     stripplot=False
                 )
                 ax.set_title(display)
-                ax.set_xlabel("Type cellulaire", fontweight="bold", fontsize=12)
-                ax.set_ylabel(f"Expression normalisée de {display} (log1p)")
+                ax.set_xlabel("Cell type", fontweight="bold", fontsize=12)
+                ax.set_ylabel(f"Normalized expression of {display} (log1p)")
                 _show(fig, ratio=[0.5, 4, 0.5])
                 figs.append(fig)
 
             elif plot_type == "histogram":
-                st.subheader(f"Histogramme de {display}")
+                st.subheader(f"Histogram of {display}")
 
                 expr = adata[:, gene].X
                 if hasattr(expr, "toarray"):
@@ -80,14 +80,14 @@ def plot_gene_expression(
 
                 fig, ax = plt.subplots(figsize=(4, 3))
                 ax.hist(expr, bins=50)
-                ax.set_title(f"Distribution de {display}")
-                ax.set_xlabel(f"Expression normalisée de {display} (log1p)")
-                ax.set_ylabel("Nombre de cellules")
+                ax.set_title(f"Distribution of {display}")
+                ax.set_xlabel(f"Normalized expression of {display} (log1p)")
+                ax.set_ylabel("Number of cells")
                 _show(fig)
                 figs.append(fig)
 
             elif plot_type == "umap":
-                st.subheader(f"UMAP de {display}")
+                st.subheader(f"UMAP of {display}")
                 fig, ax = plt.subplots(figsize=(4, 3))
                 sc.pl.umap(
                     adata,
@@ -97,7 +97,7 @@ def plot_gene_expression(
                     show=False,
                     ax=ax
                 )
-                ax.set_title(f"Expression normalisée de {display} (log1p)")
+                ax.set_title(f"Normalized expression of {display} (log1p)")
                 if display != gene:
                     for ax_item in fig.get_axes():
                         if ax_item is not ax:
@@ -109,6 +109,6 @@ def plot_gene_expression(
                 figs.append(fig)
 
         except Exception as e:
-            st.error(f"Erreur lors de la génération du {plot_type} pour {display}: {str(e)}")
+            st.error(f"Error generating {plot_type} for {display}: {str(e)}")
 
     return figs
